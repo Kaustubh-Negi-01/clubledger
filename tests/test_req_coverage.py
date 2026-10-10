@@ -72,17 +72,22 @@ def test_stale_mismatched_results_rejected(tmp_path: Path):
     """Checker must reject test results from a different git commit."""
     req_file = Path("docs/REQUIREMENTS.md")
     status_file = tmp_path / "req_status.json"
-    status_file.write_text(json.dumps({rid: "planned" for rid in parse_requirements(req_file)}), encoding="utf-8")
+    status_file.write_text(
+        json.dumps({rid: "planned" for rid in parse_requirements(req_file)}),
+        encoding="utf-8",
+    )
 
     results_file = tmp_path / "results.json"
     results_file.write_text(
-        json.dumps({
-            "timestamp": "2026-10-10T12:00:00Z",
-            "commit": "old_deadbeef_commit",
-            "exitstatus": 0,
-            "tests": [],
-            "failures": [],
-        }),
+        json.dumps(
+            {
+                "timestamp": "2026-10-10T12:00:00Z",
+                "commit": "old_deadbeef_commit",
+                "exitstatus": 0,
+                "tests": [],
+                "failures": [],
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -103,13 +108,15 @@ def test_nonzero_pytest_exitstatus_rejected(tmp_path: Path):
 
     results_file = tmp_path / "results.json"
     results_file.write_text(
-        json.dumps({
-            "timestamp": "2026-10-10T12:00:00Z",
-            "commit": "unknown",
-            "exitstatus": 2,  # e.g. collection error
-            "tests": [],
-            "failures": [],
-        }),
+        json.dumps(
+            {
+                "timestamp": "2026-10-10T12:00:00Z",
+                "commit": "unknown",
+                "exitstatus": 2,  # e.g. collection error
+                "tests": [],
+                "failures": [],
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -130,19 +137,21 @@ def test_unknown_id_in_marker(tmp_path: Path):
 
     results_file = tmp_path / "results.json"
     results_file.write_text(
-        json.dumps({
-            "timestamp": "2026-10-10T12:00:00Z",
-            "commit": "unknown",
-            "exitstatus": 0,
-            "tests": [
-                {
-                    "nodeid": "tests/unit/test_fake.py::test_fake",
-                    "outcome": "passed",
-                    "markers": [{"id": "UNKNOWN-99", "kind": "pos"}],
-                }
-            ],
-            "failures": [],
-        }),
+        json.dumps(
+            {
+                "timestamp": "2026-10-10T12:00:00Z",
+                "commit": "unknown",
+                "exitstatus": 0,
+                "tests": [
+                    {
+                        "nodeid": "tests/unit/test_fake.py::test_fake",
+                        "outcome": "passed",
+                        "markers": [{"id": "UNKNOWN-99", "kind": "pos"}],
+                    }
+                ],
+                "failures": [],
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -163,19 +172,21 @@ def test_malformed_marker_rejected(tmp_path: Path):
 
     results_file = tmp_path / "results.json"
     results_file.write_text(
-        json.dumps({
-            "timestamp": "2026-10-10T12:00:00Z",
-            "commit": "unknown",
-            "exitstatus": 0,
-            "tests": [
-                {
-                    "nodeid": "tests/unit/test_fake.py::test_fake",
-                    "outcome": "passed",
-                    "markers": [{"id": "AUTH-01", "kind": "invalid_kind"}],
-                }
-            ],
-            "failures": [],
-        }),
+        json.dumps(
+            {
+                "timestamp": "2026-10-10T12:00:00Z",
+                "commit": "unknown",
+                "exitstatus": 0,
+                "tests": [
+                    {
+                        "nodeid": "tests/unit/test_fake.py::test_fake",
+                        "outcome": "passed",
+                        "markers": [{"id": "AUTH-01", "kind": "invalid_kind"}],
+                    }
+                ],
+                "failures": [],
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -196,19 +207,26 @@ def test_failing_test_blocks_ci(tmp_path: Path):
 
     results_file = tmp_path / "results.json"
     results_file.write_text(
-        json.dumps({
-            "timestamp": "2026-10-10T12:00:00Z",
-            "commit": "unknown",
-            "exitstatus": 0,
-            "tests": [
-                {
-                    "nodeid": "tests/unit/test_err.py::test_err",
-                    "outcome": "failed",
-                    "markers": [],
-                }
-            ],
-            "failures": [{"nodeid": "tests/unit/test_err.py::test_err", "message": "AssertionError"}],
-        }),
+        json.dumps(
+            {
+                "timestamp": "2026-10-10T12:00:00Z",
+                "commit": "unknown",
+                "exitstatus": 0,
+                "tests": [
+                    {
+                        "nodeid": "tests/unit/test_err.py::test_err",
+                        "outcome": "failed",
+                        "markers": [],
+                    }
+                ],
+                "failures": [
+                    {
+                        "nodeid": "tests/unit/test_err.py::test_err",
+                        "message": "AssertionError",
+                    }
+                ],
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -234,19 +252,21 @@ def test_missing_pos_or_neg_evidence_for_implemented(tmp_path: Path):
     # Provide only 'pos' passing test
     results_file = tmp_path / "results.json"
     results_file.write_text(
-        json.dumps({
-            "timestamp": "2026-10-10T12:00:00Z",
-            "commit": "unknown",
-            "exitstatus": 0,
-            "tests": [
-                {
-                    "nodeid": "tests/unit/test_auth.py::test_auth_pos",
-                    "outcome": "passed",
-                    "markers": [{"id": "AUTH-01", "kind": "pos"}],
-                }
-            ],
-            "failures": [],
-        }),
+        json.dumps(
+            {
+                "timestamp": "2026-10-10T12:00:00Z",
+                "commit": "unknown",
+                "exitstatus": 0,
+                "tests": [
+                    {
+                        "nodeid": "tests/unit/test_auth.py::test_auth_pos",
+                        "outcome": "passed",
+                        "markers": [{"id": "AUTH-01", "kind": "pos"}],
+                    }
+                ],
+                "failures": [],
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -272,24 +292,26 @@ def test_skipped_or_xfail_never_counts_as_passing_evidence(tmp_path: Path):
     # 'pos' passed, but 'neg' was xfail
     results_file = tmp_path / "results.json"
     results_file.write_text(
-        json.dumps({
-            "timestamp": "2026-10-10T12:00:00Z",
-            "commit": "unknown",
-            "exitstatus": 0,
-            "tests": [
-                {
-                    "nodeid": "tests/unit/test_auth.py::test_auth_pos",
-                    "outcome": "passed",
-                    "markers": [{"id": "AUTH-01", "kind": "pos"}],
-                },
-                {
-                    "nodeid": "tests/unit/test_auth.py::test_auth_neg",
-                    "outcome": "xfail",
-                    "markers": [{"id": "AUTH-01", "kind": "neg"}],
-                },
-            ],
-            "failures": [],
-        }),
+        json.dumps(
+            {
+                "timestamp": "2026-10-10T12:00:00Z",
+                "commit": "unknown",
+                "exitstatus": 0,
+                "tests": [
+                    {
+                        "nodeid": "tests/unit/test_auth.py::test_auth_pos",
+                        "outcome": "passed",
+                        "markers": [{"id": "AUTH-01", "kind": "pos"}],
+                    },
+                    {
+                        "nodeid": "tests/unit/test_auth.py::test_auth_neg",
+                        "outcome": "xfail",
+                        "markers": [{"id": "AUTH-01", "kind": "neg"}],
+                    },
+                ],
+                "failures": [],
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -307,23 +329,28 @@ def test_planned_id_tests_may_execute_in_progress_mode(tmp_path: Path):
     """Under lead workflow correction, tests for planned IDs may execute without failing progress mode."""
     req_file = Path("docs/REQUIREMENTS.md")
     status_file = tmp_path / "req_status.json"
-    status_file.write_text(json.dumps({rid: "planned" for rid in parse_requirements(req_file)}), encoding="utf-8")
+    status_file.write_text(
+        json.dumps({rid: "planned" for rid in parse_requirements(req_file)}),
+        encoding="utf-8",
+    )
 
     results_file = tmp_path / "results.json"
     results_file.write_text(
-        json.dumps({
-            "timestamp": "2026-10-10T12:00:00Z",
-            "commit": "unknown",
-            "exitstatus": 0,
-            "tests": [
-                {
-                    "nodeid": "tests/unit/test_auth.py::test_partial_plan",
-                    "outcome": "passed",
-                    "markers": [{"id": "AUTH-01", "kind": "pos"}],
-                }
-            ],
-            "failures": [],
-        }),
+        json.dumps(
+            {
+                "timestamp": "2026-10-10T12:00:00Z",
+                "commit": "unknown",
+                "exitstatus": 0,
+                "tests": [
+                    {
+                        "nodeid": "tests/unit/test_auth.py::test_partial_plan",
+                        "outcome": "passed",
+                        "markers": [{"id": "AUTH-01", "kind": "pos"}],
+                    }
+                ],
+                "failures": [],
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -348,13 +375,15 @@ def test_unjustified_deferral_fails(tmp_path: Path):
 
     results_file = tmp_path / "results.json"
     results_file.write_text(
-        json.dumps({
-            "timestamp": "2026-10-10T12:00:00Z",
-            "commit": "unknown",
-            "exitstatus": 0,
-            "tests": [],
-            "failures": [],
-        }),
+        json.dumps(
+            {
+                "timestamp": "2026-10-10T12:00:00Z",
+                "commit": "unknown",
+                "exitstatus": 0,
+                "tests": [],
+                "failures": [],
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -373,19 +402,24 @@ def test_justified_deferral_succeeds(tmp_path: Path):
     req_file = Path("docs/REQUIREMENTS.md")
 
     base_status = {rid: "planned" for rid in parse_requirements(req_file)}
-    base_status["AUTH-01"] = {"status": "deferred", "reason": "Cut line per BUILD_ORDER.md §5"}
+    base_status["AUTH-01"] = {
+        "status": "deferred",
+        "reason": "Cut line per BUILD_ORDER.md §5",
+    }
     status_file = tmp_path / "req_status.json"
     status_file.write_text(json.dumps(base_status), encoding="utf-8")
 
     results_file = tmp_path / "results.json"
     results_file.write_text(
-        json.dumps({
-            "timestamp": "2026-10-10T12:00:00Z",
-            "commit": "unknown",
-            "exitstatus": 0,
-            "tests": [],
-            "failures": [],
-        }),
+        json.dumps(
+            {
+                "timestamp": "2026-10-10T12:00:00Z",
+                "commit": "unknown",
+                "exitstatus": 0,
+                "tests": [],
+                "failures": [],
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -403,17 +437,22 @@ def test_final_mode_fails_on_unimplemented(tmp_path: Path):
     """Final release gate mode must fail if planned IDs remain unimplemented."""
     req_file = Path("docs/REQUIREMENTS.md")
     status_file = tmp_path / "req_status.json"
-    status_file.write_text(json.dumps({rid: "planned" for rid in parse_requirements(req_file)}), encoding="utf-8")
+    status_file.write_text(
+        json.dumps({rid: "planned" for rid in parse_requirements(req_file)}),
+        encoding="utf-8",
+    )
 
     results_file = tmp_path / "results.json"
     results_file.write_text(
-        json.dumps({
-            "timestamp": "2026-10-10T12:00:00Z",
-            "commit": "unknown",
-            "exitstatus": 0,
-            "tests": [],
-            "failures": [],
-        }),
+        json.dumps(
+            {
+                "timestamp": "2026-10-10T12:00:00Z",
+                "commit": "unknown",
+                "exitstatus": 0,
+                "tests": [],
+                "failures": [],
+            }
+        ),
         encoding="utf-8",
     )
 

@@ -49,7 +49,11 @@ def test_first_vertical_slice_happy_path(
 
     # 1. Register users: member applicant and door staff
     applicant = make_user(email="alice@university.edu", name="Alice Applicant")
-    staff = make_user(email="staff@university.edu", name="Door Staff", roles=["door", "events", "finance.view", "treasurer", "admin"])
+    staff = make_user(
+        email="staff@university.edu",
+        name="Door Staff",
+        roles=["door", "events", "finance.view", "treasurer", "admin"],
+    )
 
     # 2. Login as applicant and visit /join
     raw_session, csrf_token = login_as(applicant)
@@ -58,7 +62,9 @@ def test_first_vertical_slice_happy_path(
     assert "Member" in resp.text
 
     # Read membership plans to get plan_id
-    plan_row = db.execute("SELECT id, dues_paise FROM membership_plans WHERE code = 'STANDARD';").fetchone()
+    plan_row = db.execute(
+        "SELECT id, dues_paise FROM membership_plans WHERE code = 'STANDARD';"
+    ).fetchone()
     assert plan_row is not None
     plan_id = plan_row["id"]
     dues_paise = plan_row["dues_paise"]  # 200000 paise (Rs. 2000)
@@ -79,7 +85,9 @@ def test_first_vertical_slice_happy_path(
     pay_public_id = pay_url.split("/pay/")[1]
 
     # Verify payment row created with DUES purpose
-    pay_row = db.execute("SELECT * FROM payments WHERE public_id = ?;", (pay_public_id,)).fetchone()
+    pay_row = db.execute(
+        "SELECT * FROM payments WHERE public_id = ?;", (pay_public_id,)
+    ).fetchone()
     assert pay_row["purpose"] == "DUES"
     assert pay_row["amount_paise"] == dues_paise
     assert pay_row["status"] == "CREATED"
@@ -88,7 +96,9 @@ def test_first_vertical_slice_happy_path(
     resp_pay_page = app_client.get(f"/pay/{pay_public_id}")
     assert resp_pay_page.status_code == 200
 
-    pay_row = db.execute("SELECT status FROM payments WHERE public_id = ?;", (pay_public_id,)).fetchone()
+    pay_row = db.execute(
+        "SELECT status FROM payments WHERE public_id = ?;", (pay_public_id,)
+    ).fetchone()
     assert pay_row["status"] == "PENDING"
 
     # 5. Simulate payment success via POST /pay/{public_id}/outcome
@@ -145,7 +155,9 @@ def test_first_vertical_slice_happy_path(
     assert tkt_pay_url.startswith("/pay/")
     tkt_pay_public_id = tkt_pay_url.split("/pay/")[1]
 
-    tkt_pay_row = db.execute("SELECT * FROM payments WHERE public_id = ?;", (tkt_pay_public_id,)).fetchone()
+    tkt_pay_row = db.execute(
+        "SELECT * FROM payments WHERE public_id = ?;", (tkt_pay_public_id,)
+    ).fetchone()
     assert tkt_pay_row["purpose"] == "TICKET"
     assert tkt_pay_row["amount_paise"] == 1600
 
@@ -185,14 +197,19 @@ def test_first_vertical_slice_happy_path(
     assert "Check-in confirmed" in resp_checkin.text
 
     # Verify ticket status in DB is USED
-    tkt1_db = db.execute("SELECT status, used_at, used_by FROM tickets WHERE code = ?;", (ticket_to_checkin,)).fetchone()
+    tkt1_db = db.execute(
+        "SELECT status, used_at, used_by FROM tickets WHERE code = ?;",
+        (ticket_to_checkin,),
+    ).fetchone()
     assert tkt1_db["status"] == "USED"
     assert tkt1_db["used_by"] == staff["id"]
 
     # 12. Financial and Journal verification:
     # Total clearing = dues (200000) + tickets (1600) = 201600 paise
     # Journal entries: 2 POSTED entries (one DUES, one TICKET)
-    entries = db.execute("SELECT * FROM journal_entries WHERE status = 'POSTED';").fetchall()
+    entries = db.execute(
+        "SELECT * FROM journal_entries WHERE status = 'POSTED';"
+    ).fetchall()
     assert len(entries) == 2
 
     # Check that each journal entry balances (Dr == Cr)
@@ -205,7 +222,9 @@ def test_first_vertical_slice_happy_path(
         assert sums["dr"] > 0
 
     # Verify Cash Summary via reports service
-    term_row = db.execute("SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;").fetchone()
+    term_row = db.execute(
+        "SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;"
+    ).fetchone()
     cs = cash_summary(db, term_row["id"])
     assert cs.cash_on_hand == 0
     assert cs.in_clearing == dues_paise + 1600
@@ -237,7 +256,9 @@ def test_first_vertical_slice_failed_dues_negative_flow(
     applicant = make_user(email="bob@university.edu", name="Bob Failing")
     raw_session, csrf_token = login_as(applicant)
 
-    plan_row = db.execute("SELECT id FROM membership_plans WHERE code = 'STANDARD';").fetchone()
+    plan_row = db.execute(
+        "SELECT id FROM membership_plans WHERE code = 'STANDARD';"
+    ).fetchone()
     plan_id = plan_row["id"]
 
     # 1. Initiate join
@@ -267,7 +288,9 @@ def test_first_vertical_slice_failed_dues_negative_flow(
     assert resp_fail.status_code == 303
 
     # 3. Assert membership remains PENDING (or not ACTIVE), no member_code or qr_token
-    mem_row = db.execute("SELECT * FROM memberships WHERE user_id = ?;", (applicant["id"],)).fetchone()
+    mem_row = db.execute(
+        "SELECT * FROM memberships WHERE user_id = ?;", (applicant["id"],)
+    ).fetchone()
     assert mem_row["status"] != "ACTIVE"
     assert mem_row["member_code"] is None
     assert mem_row["qr_token"] is None
@@ -278,7 +301,9 @@ def test_first_vertical_slice_failed_dues_negative_flow(
     assert "No Active Membership" in resp_card.text or mem_row["member_code"] is None
 
     # 4. Zero journal entries posted
-    entries_count = db.execute("SELECT COUNT(*) AS c FROM journal_entries;").fetchone()["c"]
+    entries_count = db.execute("SELECT COUNT(*) AS c FROM journal_entries;").fetchone()[
+        "c"
+    ]
     assert entries_count == 0
 
     # 5. Check ticket price for Bob on an event: must be charged PUBLIC price (1000 paise, not 800)
@@ -316,7 +341,12 @@ def test_regression_capacity_race_and_late_payment_unfulfilled(
     u2 = make_user(email="racer2@test.org", name="Racer 2")
 
     # Event with capacity=1
-    event = make_event(title="Single Seat Concert", capacity=1, public_price_paise=5000, member_price_paise=4000)
+    event = make_event(
+        title="Single Seat Concert",
+        capacity=1,
+        public_price_paise=5000,
+        member_price_paise=4000,
+    )
     event_id = event["id"]
 
     # User 1 holds the only seat
@@ -331,6 +361,7 @@ def test_regression_capacity_race_and_late_payment_unfulfilled(
 
     # Advance clock past hold expiry (11 minutes later) and run expire_holds
     from clubledger.events.service import expire_holds
+
     clock.set_now("2026-09-01T12:11:00Z")
     expire_holds(db, clock.now())
 
@@ -352,7 +383,10 @@ def test_regression_capacity_race_and_late_payment_unfulfilled(
     )
     assert resp_pay2.status_code == 303
 
-    u2_tickets = db.execute("SELECT * FROM tickets WHERE user_id = ? AND event_id = ?;", (u2["id"], event_id)).fetchall()
+    u2_tickets = db.execute(
+        "SELECT * FROM tickets WHERE user_id = ? AND event_id = ?;",
+        (u2["id"], event_id),
+    ).fetchall()
     assert len(u2_tickets) == 1
     assert u2_tickets[0]["status"] == "ISSUED"
 
@@ -366,16 +400,23 @@ def test_regression_capacity_race_and_late_payment_unfulfilled(
     assert resp_pay1_late.status_code == 303
 
     # Verify User 1's payment row: status=SUCCEEDED, fulfillment=UNFULFILLED
-    pay1_row = db.execute("SELECT * FROM payments WHERE public_id = ?;", (pay1_public_id,)).fetchone()
+    pay1_row = db.execute(
+        "SELECT * FROM payments WHERE public_id = ?;", (pay1_public_id,)
+    ).fetchone()
     assert pay1_row["status"] == "SUCCEEDED"
     assert pay1_row["fulfillment"] == "UNFULFILLED"
 
     # Verify no ticket was issued for User 1
-    u1_tickets = db.execute("SELECT * FROM tickets WHERE user_id = ? AND event_id = ?;", (u1["id"], event_id)).fetchall()
+    u1_tickets = db.execute(
+        "SELECT * FROM tickets WHERE user_id = ? AND event_id = ?;",
+        (u1["id"], event_id),
+    ).fetchall()
     assert len(u1_tickets) == 0
 
     # Total tickets for event remains exactly 1 (capacity respected)
-    total_tickets = db.execute("SELECT COUNT(*) AS c FROM tickets WHERE event_id = ?;", (event_id,)).fetchone()["c"]
+    total_tickets = db.execute(
+        "SELECT COUNT(*) AS c FROM tickets WHERE event_id = ?;", (event_id,)
+    ).fetchone()["c"]
     assert total_tickets == 1
 
     # Cash summary: 2000 account (unfulfilled obligations) has 5000 paise balance
@@ -398,7 +439,12 @@ def test_regression_ticket_cancellation_and_exact_journal_reversal(
     buyer = make_user(email="buyer@test.org", name="Ticket Buyer")
     _, csrf = login_as(buyer)
 
-    event = make_event(title="Refundable Show", capacity=10, public_price_paise=2500, member_price_paise=2000)
+    event = make_event(
+        title="Refundable Show",
+        capacity=10,
+        public_price_paise=2500,
+        member_price_paise=2000,
+    )
     event_id = event["id"]
 
     # Hold and pay for 1 ticket
@@ -415,7 +461,9 @@ def test_regression_ticket_cancellation_and_exact_journal_reversal(
         follow_redirects=False,
     )
 
-    pay_row = db.execute("SELECT * FROM payments WHERE public_id = ?;", (pay_public_id,)).fetchone()
+    pay_row = db.execute(
+        "SELECT * FROM payments WHERE public_id = ?;", (pay_public_id,)
+    ).fetchone()
     assert pay_row["status"] == "SUCCEEDED"
     assert pay_row["fulfillment"] == "FULFILLED"
 
@@ -429,11 +477,15 @@ def test_regression_ticket_cancellation_and_exact_journal_reversal(
 
     # Post-refund:
     # 1. Payment status is REFUNDED
-    pay_after = db.execute("SELECT status FROM payments WHERE id = ?;", (pay_row["id"],)).fetchone()
+    pay_after = db.execute(
+        "SELECT status FROM payments WHERE id = ?;", (pay_row["id"],)
+    ).fetchone()
     assert pay_after["status"] == "REFUNDED"
 
     # 2. Tickets are REFUNDED
-    tkt_after = db.execute("SELECT status FROM tickets WHERE payment_id = ?;", (pay_row["id"],)).fetchone()
+    tkt_after = db.execute(
+        "SELECT status FROM tickets WHERE payment_id = ?;", (pay_row["id"],)
+    ).fetchone()
     assert tkt_after["status"] == "REFUNDED"
 
     # 3. Journal lines reversed: clearing (1100) returns to 0, ticket income (4100) returns to 0
@@ -454,7 +506,12 @@ def test_regression_repeated_notifications_no_effect(
     user = make_user(email="replay@test.org", name="Replay User")
     _, csrf = login_as(user)
 
-    event = make_event(title="Replay Event", capacity=10, public_price_paise=1500, member_price_paise=1200)
+    event = make_event(
+        title="Replay Event",
+        capacity=10,
+        public_price_paise=1500,
+        member_price_paise=1200,
+    )
     resp_hold = app_client.post(
         f"/events/{event['id']}/hold",
         data={"qty": "1", "idempotency_key": "replay_key_1", "csrf_token": csrf},
@@ -471,7 +528,9 @@ def test_regression_repeated_notifications_no_effect(
     assert resp1.status_code == 200
     assert resp1.json()["outcome"] == "APPLIED"
 
-    entries_count1 = db.execute("SELECT COUNT(*) AS c FROM journal_entries;").fetchone()["c"]
+    entries_count1 = db.execute(
+        "SELECT COUNT(*) AS c FROM journal_entries;"
+    ).fetchone()["c"]
     tickets_count1 = db.execute("SELECT COUNT(*) AS c FROM tickets;").fetchone()["c"]
 
     # Second delivery (repeated notification)
@@ -485,7 +544,9 @@ def test_regression_repeated_notifications_no_effect(
     assert resp2.json()["reason"] == "REPEATED_NOTIFICATION"
 
     # Invariants unchanged
-    entries_count2 = db.execute("SELECT COUNT(*) AS c FROM journal_entries;").fetchone()["c"]
+    entries_count2 = db.execute(
+        "SELECT COUNT(*) AS c FROM journal_entries;"
+    ).fetchone()["c"]
     tickets_count2 = db.execute("SELECT COUNT(*) AS c FROM tickets;").fetchone()["c"]
     assert entries_count1 == entries_count2
     assert tickets_count1 == tickets_count2
@@ -509,14 +570,22 @@ def test_regression_csrf_and_foreign_ownership_blocks(
     plan_row = db.execute("SELECT id FROM membership_plans LIMIT 1;").fetchone()
     resp_join = app_client.post(
         "/join",
-        data={"plan_id": str(plan_row["id"]), "idempotency_key": "v_join", "csrf_token": "valid"},
+        data={
+            "plan_id": str(plan_row["id"]),
+            "idempotency_key": "v_join",
+            "csrf_token": "valid",
+        },
         follow_redirects=False,
     )
     # The CSRF check above will fail if not using victim's actual csrf
     _, victim_csrf = login_as(victim)
     resp_join = app_client.post(
         "/join",
-        data={"plan_id": str(plan_row["id"]), "idempotency_key": "v_join", "csrf_token": victim_csrf},
+        data={
+            "plan_id": str(plan_row["id"]),
+            "idempotency_key": "v_join",
+            "csrf_token": victim_csrf,
+        },
         follow_redirects=False,
     )
     victim_pay_id = resp_join.headers["location"].split("/pay/")[1]
@@ -529,7 +598,11 @@ def test_regression_csrf_and_foreign_ownership_blocks(
     # 2. CSRF rejection: POST /join with invalid CSRF token -> 403
     resp_csrf_fail = app_client.post(
         "/join",
-        data={"plan_id": str(plan_row["id"]), "idempotency_key": "csrf_hack", "csrf_token": "wrong_csrf"},
+        data={
+            "plan_id": str(plan_row["id"]),
+            "idempotency_key": "csrf_hack",
+            "csrf_token": "wrong_csrf",
+        },
     )
     assert resp_csrf_fail.status_code == 403
 
@@ -547,20 +620,32 @@ def test_regression_duplicate_and_wrong_event_checkin(
     staff = make_user(email="staff2@test.org", name="Staff 2", roles=["door"])
     buyer = make_user(email="attendee@test.org", name="Attendee")
 
-    e1 = make_event(title="Concert A", capacity=10, public_price_paise=1000, member_price_paise=1000)
-    e2 = make_event(title="Concert B", capacity=10, public_price_paise=1000, member_price_paise=1000)
+    e1 = make_event(
+        title="Concert A", capacity=10, public_price_paise=1000, member_price_paise=1000
+    )
+    e2 = make_event(
+        title="Concert B", capacity=10, public_price_paise=1000, member_price_paise=1000
+    )
 
     # Buyer buys ticket for Concert A
     _, buyer_csrf = login_as(buyer)
     resp_h = app_client.post(
         f"/events/{e1['id']}/hold",
-        data={"qty": "1", "idempotency_key": "hold_checkin_reg", "csrf_token": buyer_csrf},
+        data={
+            "qty": "1",
+            "idempotency_key": "hold_checkin_reg",
+            "csrf_token": buyer_csrf,
+        },
         follow_redirects=False,
     )
     pay_id = resp_h.headers["location"].split("/pay/")[1]
-    app_client.post(f"/pay/{pay_id}/outcome", data={"outcome": "success", "csrf_token": buyer_csrf})
+    app_client.post(
+        f"/pay/{pay_id}/outcome", data={"outcome": "success", "csrf_token": buyer_csrf}
+    )
 
-    ticket_code = db.execute("SELECT code FROM tickets WHERE user_id = ?;", (buyer["id"],)).fetchone()["code"]
+    ticket_code = db.execute(
+        "SELECT code FROM tickets WHERE user_id = ?;", (buyer["id"],)
+    ).fetchone()["code"]
 
     # Staff logs in
     _, staff_csrf = login_as(staff)
@@ -572,7 +657,12 @@ def test_regression_duplicate_and_wrong_event_checkin(
     )
     assert resp_wrong.status_code == 422
     assert "Ticket is for another event" in resp_wrong.text
-    assert db.execute('SELECT status FROM tickets WHERE code=?', (ticket_code,)).fetchone()[0] == 'ISSUED'
+    assert (
+        db.execute(
+            "SELECT status FROM tickets WHERE code=?", (ticket_code,)
+        ).fetchone()[0]
+        == "ISSUED"
+    )
 
     # 2. Scan ticket at Concert A door -> OK (First scan)
     resp_ok = app_client.post(
@@ -581,7 +671,11 @@ def test_regression_duplicate_and_wrong_event_checkin(
     )
     assert resp_ok.status_code == 200
     assert "Check-in confirmed" in resp_ok.text
-    first_admission = tuple(db.execute('SELECT used_at,used_by FROM tickets WHERE code=?', (ticket_code,)).fetchone())
+    first_admission = tuple(
+        db.execute(
+            "SELECT used_at,used_by FROM tickets WHERE code=?", (ticket_code,)
+        ).fetchone()
+    )
 
     # 3. Scan same ticket again at Concert A door -> ALREADY_USED
     resp_dup = app_client.post(
@@ -590,4 +684,11 @@ def test_regression_duplicate_and_wrong_event_checkin(
     )
     assert resp_dup.status_code == 409
     assert "already used" in resp_dup.text.lower()
-    assert tuple(db.execute('SELECT used_at,used_by FROM tickets WHERE code=?', (ticket_code,)).fetchone()) == first_admission
+    assert (
+        tuple(
+            db.execute(
+                "SELECT used_at,used_by FROM tickets WHERE code=?", (ticket_code,)
+            ).fetchone()
+        )
+        == first_admission
+    )

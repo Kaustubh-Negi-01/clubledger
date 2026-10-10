@@ -34,12 +34,23 @@ def mock_create_payment(
     amount_paise: int,
 ) -> Payment:
     """Mock payment creation for testing paid hold workflows."""
-    term_row = conn.execute("SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;").fetchone()
+    term_row = conn.execute(
+        "SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;"
+    ).fetchone()
     term_id = term_row["id"] if term_row else 1
     cur = conn.execute(
         "INSERT INTO payments (public_id, user_id, purpose, ref_table, ref_id, amount_paise, currency, status, fulfillment, term_id, created_at) "
         "VALUES (?, ?, ?, ?, ?, ?, 'INR', 'CREATED', 'NONE', ?, ?);",
-        (f"pay_hold_{ref_id}", user_id, purpose, ref_table, ref_id, amount_paise, term_id, clock.now()),
+        (
+            f"pay_hold_{ref_id}",
+            user_id,
+            purpose,
+            ref_table,
+            ref_id,
+            amount_paise,
+            term_id,
+            clock.now(),
+        ),
     )
     return Payment(
         id=cur.lastrowid,  # type: ignore
@@ -66,7 +77,15 @@ def db_conn(monkeypatch):
     conn.execute(
         "INSERT INTO terms (id, label, starts_at, ends_at, status, closed_at, created_at) "
         "VALUES (?, ?, ?, ?, ?, ?, ?);",
-        (1, "Term 2026-27", "2026-08-01T00:00:00Z", None, "OPEN", None, "2026-08-01T00:00:00Z"),
+        (
+            1,
+            "Term 2026-27",
+            "2026-08-01T00:00:00Z",
+            None,
+            "OPEN",
+            None,
+            "2026-08-01T00:00:00Z",
+        ),
     )
 
     # Seed users
@@ -156,7 +175,9 @@ def test_create_hold_free_tickets(db_conn):
     assert hold.status == "CONSUMED"
     assert hold.unit_price_paise == 0
 
-    tickets = db_conn.execute("SELECT * FROM tickets WHERE hold_id = ? ORDER BY seat_index ASC;", (hold.id,)).fetchall()
+    tickets = db_conn.execute(
+        "SELECT * FROM tickets WHERE hold_id = ? ORDER BY seat_index ASC;", (hold.id,)
+    ).fetchall()
     assert len(tickets) == 2
     assert tickets[0]["seat_index"] == 1
     assert tickets[1]["seat_index"] == 2
@@ -310,21 +331,29 @@ def test_fulfill_ticket_hold_multi_seat_and_idempotency(db_conn):
     )
 
     # First fulfillment: succeeds and generates exactly 2 tickets with seat_index 1 and 2
-    res1 = fulfill_ticket_hold(db_conn, payment, manual=False, now="2026-10-10T10:05:00Z")
+    res1 = fulfill_ticket_hold(
+        db_conn, payment, manual=False, now="2026-10-10T10:05:00Z"
+    )
     assert res1.outcome == "FULFILLED"
 
-    tickets = db_conn.execute("SELECT * FROM tickets WHERE hold_id = ? ORDER BY seat_index ASC;", (hold.id,)).fetchall()
+    tickets = db_conn.execute(
+        "SELECT * FROM tickets WHERE hold_id = ? ORDER BY seat_index ASC;", (hold.id,)
+    ).fetchall()
     assert len(tickets) == 2
     assert tickets[0]["seat_index"] == 1
     assert tickets[1]["seat_index"] == 2
     assert tickets[0]["code"] != tickets[1]["code"]
 
     # Second fulfillment: idempotent replay
-    res2 = fulfill_ticket_hold(db_conn, payment, manual=False, now="2026-10-10T10:06:00Z")
+    res2 = fulfill_ticket_hold(
+        db_conn, payment, manual=False, now="2026-10-10T10:06:00Z"
+    )
     assert res2.outcome == "FULFILLED"
 
     # Ticket count remains 2
-    count = db_conn.execute("SELECT COUNT(*) AS c FROM tickets WHERE hold_id = ?;", (hold.id,)).fetchone()["c"]
+    count = db_conn.execute(
+        "SELECT COUNT(*) AS c FROM tickets WHERE hold_id = ?;", (hold.id,)
+    ).fetchone()["c"]
     assert count == 2
 
 
@@ -339,7 +368,9 @@ def test_ticket_checkin_lifecycle(db_conn):
     )
     fulfill_ticket_hold(db_conn, payment, manual=False, now="2026-10-10T10:05:00Z")
 
-    ticket = db_conn.execute("SELECT * FROM tickets WHERE hold_id = ?;", (hold.id,)).fetchone()
+    ticket = db_conn.execute(
+        "SELECT * FROM tickets WHERE hold_id = ?;", (hold.id,)
+    ).fetchone()
     code = ticket["code"]
 
     # First check-in: succeeds
@@ -348,7 +379,9 @@ def test_ticket_checkin_lifecycle(db_conn):
     assert res1.ticket_id == ticket["id"]
 
     # Verify status in database
-    t_after = db_conn.execute("SELECT status, used_at, used_by FROM tickets WHERE id = ?;", (ticket["id"],)).fetchone()
+    t_after = db_conn.execute(
+        "SELECT status, used_at, used_by FROM tickets WHERE id = ?;", (ticket["id"],)
+    ).fetchone()
     assert t_after["status"] == "USED"
     assert t_after["used_at"] is not None
     assert t_after["used_by"] == 3
@@ -440,7 +473,9 @@ def test_proven_oversell_expired_hold_callback_rejected(db_conn):
     assert tickets[0]["user_id"] == 2
 
     # 5. Manual fulfillment attempt for expired pay1 when capacity is sold out
-    manual_res = fulfill_ticket_hold(db_conn, pay1, manual=True, now="2026-10-10T12:15:00Z")
+    manual_res = fulfill_ticket_hold(
+        db_conn, pay1, manual=True, now="2026-10-10T12:15:00Z"
+    )
     assert manual_res.outcome == "UNFULFILLABLE"
     assert manual_res.reason == "SOLD_OUT"
 
@@ -455,8 +490,12 @@ def test_event_report_and_cancellation(db_conn):
         idempotency_key="idemp_rep_alice",
         create_payment_fn=mock_create_payment,
     )
-    db_conn.execute("UPDATE payments SET status = 'SUCCEEDED' WHERE id = ?;", (payment_alice.id,))
-    fulfill_ticket_hold(db_conn, payment_alice, manual=False, now="2026-10-10T10:05:00Z")
+    db_conn.execute(
+        "UPDATE payments SET status = 'SUCCEEDED' WHERE id = ?;", (payment_alice.id,)
+    )
+    fulfill_ticket_hold(
+        db_conn, payment_alice, manual=False, now="2026-10-10T10:05:00Z"
+    )
 
     # Bob books 1 ticket for event 1 (SUCCEEDED payment)
     hold_bob, payment_bob = create_hold(
@@ -467,15 +506,20 @@ def test_event_report_and_cancellation(db_conn):
         idempotency_key="idemp_rep_bob",
         create_payment_fn=mock_create_payment,
     )
-    db_conn.execute("UPDATE payments SET status = 'SUCCEEDED' WHERE id = ?;", (payment_bob.id,))
+    db_conn.execute(
+        "UPDATE payments SET status = 'SUCCEEDED' WHERE id = ?;", (payment_bob.id,)
+    )
     fulfill_ticket_hold(db_conn, payment_bob, manual=False, now="2026-10-10T10:06:00Z")
 
     # Charlie books free ticket for event 2
-    hold_free, _ = create_hold(db_conn, user_id=2, event_id=2, qty=1, idempotency_key="idemp_free_rep")
+    hold_free, _ = create_hold(
+        db_conn, user_id=2, event_id=2, qty=1, idempotency_key="idemp_free_rep"
+    )
 
     # Check in Alice's first ticket (Alice now has 1 USED, 1 ISSUED)
     ticket_alice1 = db_conn.execute(
-        "SELECT code FROM tickets WHERE hold_id = ? AND seat_index = 1;", (hold_alice.id,)
+        "SELECT code FROM tickets WHERE hold_id = ? AND seat_index = 1;",
+        (hold_alice.id,),
     ).fetchone()
     check_in(db_conn, event_id=1, code=ticket_alice1["code"], staff_id=3)
 
@@ -492,10 +536,14 @@ def test_event_report_and_cancellation(db_conn):
     assert cancel_res1.flagged_count == 1
 
     # Verify Bob's payment and tickets are REFUNDED in DB
-    p_bob = db_conn.execute("SELECT status, refunded_at FROM payments WHERE id = ?;", (payment_bob.id,)).fetchone()
+    p_bob = db_conn.execute(
+        "SELECT status, refunded_at FROM payments WHERE id = ?;", (payment_bob.id,)
+    ).fetchone()
     assert p_bob["status"] == "REFUNDED"
     assert p_bob["refunded_at"] is not None
-    t_bob = db_conn.execute("SELECT status FROM tickets WHERE hold_id = ?;", (hold_bob.id,)).fetchone()
+    t_bob = db_conn.execute(
+        "SELECT status FROM tickets WHERE hold_id = ?;", (hold_bob.id,)
+    ).fetchone()
     assert t_bob["status"] == "REFUNDED"
 
     # Repeat cancellation is idempotent
@@ -520,9 +568,13 @@ def test_event_report_and_cancellation(db_conn):
     assert rep1.attended == 1
 
     # Cancel Event 2 (free tickets become VOID)
-    cancel_res2 = cancel_event(db_conn, {"TICKET": TICKET_PURPOSE_HANDLER}, event_id=2, actor_id=3)
+    cancel_res2 = cancel_event(
+        db_conn, {"TICKET": TICKET_PURPOSE_HANDLER}, event_id=2, actor_id=3
+    )
     assert cancel_res2.void_count == 1
-    t2 = db_conn.execute("SELECT status FROM tickets WHERE hold_id = ?;", (hold_free.id,)).fetchone()
+    t2 = db_conn.execute(
+        "SELECT status FROM tickets WHERE hold_id = ?;", (hold_free.id,)
+    ).fetchone()
     assert t2["status"] == "VOID"
 
 

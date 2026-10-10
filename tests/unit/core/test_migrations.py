@@ -65,7 +65,9 @@ def test_prefix_runner_controlled_migrations_dir(tmp_path: Path) -> None:
         "CREATE TABLE schema_migrations (number INTEGER PRIMARY KEY, filename TEXT NOT NULL, checksum TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;\n",
         encoding="utf-8",
     )
-    (mig_dir / "0002_two.sql").write_text("CREATE TABLE t2 (id INTEGER PRIMARY KEY) STRICT;\n", encoding="utf-8")
+    (mig_dir / "0002_two.sql").write_text(
+        "CREATE TABLE t2 (id INTEGER PRIMARY KEY) STRICT;\n", encoding="utf-8"
+    )
 
     db_file = tmp_path / "prefix.db"
     conn = connect(str(db_file))
@@ -110,8 +112,12 @@ def test_rejects_internal_gap(tmp_path: Path) -> None:
         "CREATE TABLE schema_migrations (number INTEGER PRIMARY KEY, filename TEXT NOT NULL, checksum TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;\n",
         encoding="utf-8",
     )
-    (mig_dir / "0002_two.sql").write_text("CREATE TABLE t2 (id INTEGER PRIMARY KEY) STRICT;\n", encoding="utf-8")
-    (mig_dir / "0004_four.sql").write_text("CREATE TABLE t4 (id INTEGER PRIMARY KEY) STRICT;\n", encoding="utf-8")
+    (mig_dir / "0002_two.sql").write_text(
+        "CREATE TABLE t2 (id INTEGER PRIMARY KEY) STRICT;\n", encoding="utf-8"
+    )
+    (mig_dir / "0004_four.sql").write_text(
+        "CREATE TABLE t4 (id INTEGER PRIMARY KEY) STRICT;\n", encoding="utf-8"
+    )
 
     db_file = tmp_path / "gap.db"
     conn = connect(str(db_file))
@@ -149,10 +155,16 @@ def test_rejects_changed_applied_migration_checksum(tmp_path: Path) -> None:
         assert applied == [1]
 
         # Now tamper with 0001_core.sql
-        f1.write_text("CREATE TABLE t1 (id INTEGER PRIMARY KEY, extra TEXT) STRICT;\n", encoding="utf-8")
+        f1.write_text(
+            "CREATE TABLE t1 (id INTEGER PRIMARY KEY, extra TEXT) STRICT;\n",
+            encoding="utf-8",
+        )
 
         # Next run must fail with MigrationChecksumError naming the file
-        with pytest.raises(MigrationChecksumError, match="Checksum mismatch for migration 0001_core.sql"):
+        with pytest.raises(
+            MigrationChecksumError,
+            match="Checksum mismatch for migration 0001_core.sql",
+        ):
             apply_migrations(conn, migrations_dir=mig_dir)
     finally:
         conn.close()
@@ -161,13 +173,19 @@ def test_rejects_changed_applied_migration_checksum(tmp_path: Path) -> None:
 def test_rejects_duplicate_migration_numbers(tmp_path: Path) -> None:
     mig_dir = tmp_path / "migrations_dup"
     mig_dir.mkdir()
-    (mig_dir / "0001_first.sql").write_text("CREATE TABLE a (id INTEGER PRIMARY KEY);", encoding="utf-8")
-    (mig_dir / "0001_second.sql").write_text("CREATE TABLE b (id INTEGER PRIMARY KEY);", encoding="utf-8")
+    (mig_dir / "0001_first.sql").write_text(
+        "CREATE TABLE a (id INTEGER PRIMARY KEY);", encoding="utf-8"
+    )
+    (mig_dir / "0001_second.sql").write_text(
+        "CREATE TABLE b (id INTEGER PRIMARY KEY);", encoding="utf-8"
+    )
 
     db_file = tmp_path / "dup.db"
     conn = connect(str(db_file))
     try:
-        with pytest.raises(MigrationDuplicateError, match="Duplicate migration number 0001"):
+        with pytest.raises(
+            MigrationDuplicateError, match="Duplicate migration number 0001"
+        ):
             apply_migrations(conn, migrations_dir=mig_dir)
     finally:
         conn.close()
@@ -182,7 +200,9 @@ def test_rejects_missing_previously_applied_file(tmp_path: Path) -> None:
         "CREATE TABLE schema_migrations (number INTEGER PRIMARY KEY, filename TEXT NOT NULL, checksum TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;\n",
         encoding="utf-8",
     )
-    (mig_dir / "0002_two.sql").write_text("CREATE TABLE t2 (id INTEGER PRIMARY KEY) STRICT;\n", encoding="utf-8")
+    (mig_dir / "0002_two.sql").write_text(
+        "CREATE TABLE t2 (id INTEGER PRIMARY KEY) STRICT;\n", encoding="utf-8"
+    )
 
     db_file = tmp_path / "missing_applied.db"
     conn = connect(str(db_file))
@@ -194,7 +214,10 @@ def test_rejects_missing_previously_applied_file(tmp_path: Path) -> None:
         f1.unlink()
 
         # Normal CLI run must fail naming the missing applied file
-        with pytest.raises(MigrationError, match="Previously applied migration file missing: 0001_core.sql"):
+        with pytest.raises(
+            MigrationError,
+            match="Previously applied migration file missing: 0001_core.sql",
+        ):
             apply_migrations(conn, migrations_dir=mig_dir)
     finally:
         conn.close()
@@ -220,7 +243,10 @@ def test_rejects_renamed_previously_applied_file(tmp_path: Path) -> None:
         f1.rename(mig_dir / "0001_renamed.sql")
 
         # Normal CLI run must fail naming the renamed file
-        with pytest.raises(MigrationError, match="Previously applied migration file renamed: expected 0001_core.sql"):
+        with pytest.raises(
+            MigrationError,
+            match="Previously applied migration file renamed: expected 0001_core.sql",
+        ):
             apply_migrations(conn, migrations_dir=mig_dir)
     finally:
         conn.close()
@@ -276,13 +302,19 @@ def test_payment_events_outcome_immutable_trigger(tmp_path: Path) -> None:
         )
 
         # Attempt to mutate outcome directly should abort via trigger
-        with pytest.raises(sqlite3.IntegrityError, match="payment_events.outcome is immutable"):
-            conn.execute("UPDATE payment_events SET outcome = 'NO_EFFECT' WHERE id = 1;")
+        with pytest.raises(
+            sqlite3.IntegrityError, match="payment_events.outcome is immutable"
+        ):
+            conn.execute(
+                "UPDATE payment_events SET outcome = 'NO_EFFECT' WHERE id = 1;"
+            )
     finally:
         conn.close()
 
 
-def test_cli_migrate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_migrate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     from clubledger.cli import main
 
     db_file = tmp_path / "cli_test.db"
@@ -307,5 +339,3 @@ def test_cli_migrate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: py
     # Second seed is idempotent
     exit_code_seed_again = main(["seed", "--db", str(db_file)])
     assert exit_code_seed_again == 0
-
-

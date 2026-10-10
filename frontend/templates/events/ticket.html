@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{# Events ticket: presentation only. Values are supplied by the backend; forms submit to API routes. #}
+{% block title %}
+    Ticket
+    {{ ticket.code }}
+    - ClubLedger
+{% endblock %}
+{% block header_title %}
+    Event Ticket
+{% endblock %}
+{% block content %}
+    <section aria-labelledby="ticket-heading">
+        <h2 id="ticket-heading">
+            Digital Admission Pass
+        </h2>
+        <article class="ticket-card events-ticket-layout-1">
+            <header>
+                <h3>
+                    {{ ticket.event_title }}
+                </h3>
+                <p>
+                    <strong>
+                        Venue:
+                    </strong>
+                    {{ ticket.event_venue }}
+                </p>
+                <p>
+                    <strong>
+                        Date &amp; Time:
+                    </strong>
+                    <time datetime="{{ ticket.event_starts_at }}">
+                        {{ ticket.event_starts_at }}
+                    </time>
+                </p>
+                <p>
+                    <strong>
+                        Seat / Entry #:
+                    </strong>
+                    Seat
+                    {{ ticket.seat_index }}
+                </p>
+                <p>
+                    <strong>
+                        Attendee:
+                    </strong>
+                    {{ ticket.user_name }}
+                </p>
+                <p>
+                    <strong>
+                        Status:
+                    </strong>
+                    <span class="badge badge-status">
+                        {{ ticket.status }}
+                    </span>
+                </p>
+            </header>
+            <div class="ticket-code-display events-ticket-layout-2">
+                {% if qr_data %}
+                    <div class="qr-container events-ticket-layout-3">
+                        <img src="{{ qr_data }}"
+                        alt="QR Code for admission code {{ ticket.code }}"
+                        width="200"
+                        height="200"
+                        class="events-ticket-layout-4">
+                    </div>
+                {% endif %}
+                <div class="manual-code-section">
+                    <label for="admission-code"
+                    class="events-ticket-layout-5">
+                        Admission Code:
+                    </label>
+                    <code id="admission-code"
+                    class="events-ticket-layout-6">
+                        {{ ticket.code }}
+                    </code>
+                    <p class="events-ticket-layout-7">
+                        Present this code or QR at the entrance door check-in scanner.
+                    </p>
+                </div>
+            </div>
+            <footer>
+                <p>
+                    <small>
+                        Price: ₹{{ price_inr }}
+                        (
+                        {{ ticket.price_tier }}
+                        ) • Issued at:
+                        {{ ticket.created_at }}
+                    </small>
+                </p>
+                {% if ticket.used_at %}
+                    <p role="alert">
+                        <small>
+                            <strong>
+                                Checked in at:
+                            </strong>
+                            {{ ticket.used_at }}
+                        </small>
+                    </p>
+                {% endif %}
+            </footer>
+        </article>
+        <nav aria-label="Ticket navigation">
+            <p>
+                <a href="/events">
+                    ← Back to Events
+                </a>
+            </p>
+        </nav>
+    </section>
+{% endblock %}

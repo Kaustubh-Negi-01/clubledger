@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{# Unsubscribe: presentation only. Values are supplied by the backend; forms submit to API routes. #}
+{% block title %}
+    Email preferences · ClubLedger
+{% endblock %}
+{% block header_title %}
+    Email preferences
+{% endblock %}
+{% block content %}
+    <section class="panel">
+        <h2>
+            Unsubscribe
+            {{ email }}
+            ?
+        </h2>
+        <p>
+            You can still use your club account and read public announcements.
+        </p>
+        <form action="/unsubscribe/{{ token }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ request.state.pre_csrf }}">
+            <button>
+                Unsubscribe from updates
+            </button>
+        </form>
+    </section>
+{% endblock %}

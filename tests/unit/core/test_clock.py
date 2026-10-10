@@ -43,7 +43,9 @@ def test_set_now_works_under_test_env() -> None:
 def test_set_now_raises_outside_test_env() -> None:
     for env in ("dev", "prod"):
         os.environ["CLUBLEDGER_ENV"] = env
-        with pytest.raises(RuntimeError, match="allowed only when CLUBLEDGER_ENV == 'test'"):
+        with pytest.raises(
+            RuntimeError, match="allowed only when CLUBLEDGER_ENV == 'test'"
+        ):
             clock.set_now("2026-08-15T10:30:00Z")
 
 
@@ -61,7 +63,9 @@ def test_academic_year_bounds() -> None:
     assert exp_b == "2027-07-31T18:30:00Z"
 
     # 3. 1 second before boundary: 31 Jul 23:59:59 IST = 31 Jul 18:29:59Z
-    label_prev, start_prev, exp_prev = clock.academic_year_bounds("2026-07-31T18:29:59Z")
+    label_prev, start_prev, exp_prev = clock.academic_year_bounds(
+        "2026-07-31T18:29:59Z"
+    )
     assert label_prev == "2025-26"
     assert start_prev == "2025-07-31T18:30:00Z"
     assert exp_prev == "2026-07-31T18:30:00Z"

@@ -32,12 +32,23 @@ def mock_create_payment(
     amount_paise: int,
 ) -> Payment:
     """Mock payment creation for testing paid cart reservations."""
-    term_row = conn.execute("SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;").fetchone()
+    term_row = conn.execute(
+        "SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;"
+    ).fetchone()
     term_id = term_row["id"] if term_row else 1
     cur = conn.execute(
         "INSERT INTO payments (public_id, user_id, purpose, ref_table, ref_id, amount_paise, currency, status, fulfillment, term_id, created_at) "
         "VALUES (?, ?, ?, ?, ?, ?, 'INR', 'CREATED', 'NONE', ?, ?);",
-        (f"pay_order_{ref_id}", user_id, purpose, ref_table, ref_id, amount_paise, term_id, clock.now()),
+        (
+            f"pay_order_{ref_id}",
+            user_id,
+            purpose,
+            ref_table,
+            ref_id,
+            amount_paise,
+            term_id,
+            clock.now(),
+        ),
     )
     return Payment(
         id=cur.lastrowid,  # type: ignore
@@ -64,7 +75,15 @@ def db_conn(monkeypatch):
     conn.execute(
         "INSERT INTO terms (id, label, starts_at, ends_at, status, closed_at, created_at) "
         "VALUES (?, ?, ?, ?, ?, ?, ?);",
-        (1, "Term 2026-27", "2026-08-01T00:00:00Z", None, "OPEN", None, "2026-08-01T00:00:00Z"),
+        (
+            1,
+            "Term 2026-27",
+            "2026-08-01T00:00:00Z",
+            None,
+            "OPEN",
+            None,
+            "2026-08-01T00:00:00Z",
+        ),
     )
 
     # Seed users
@@ -108,7 +127,10 @@ def test_seed_store_creates_default_hoodie(db_conn):
     assert products[0]["name"] == "Club Classic Hoodie"
     assert products[0]["base_price_paise"] == 250000
 
-    variants = db_conn.execute("SELECT * FROM variants WHERE product_id = ? ORDER BY id ASC;", (products[0]["id"],)).fetchall()
+    variants = db_conn.execute(
+        "SELECT * FROM variants WHERE product_id = ? ORDER BY id ASC;",
+        (products[0]["id"],),
+    ).fetchall()
     assert len(variants) == 4
     sizes = [v["size"] for v in variants]
     assert sizes == ["S", "M", "L", "XL"]
@@ -146,7 +168,9 @@ def test_reserve_cart_member_vs_public_pricing(db_conn):
 
 
 def test_reserve_cart_atomic_stock_reservation(db_conn):
-    v_before = db_conn.execute("SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;").fetchone()
+    v_before = db_conn.execute(
+        "SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;"
+    ).fetchone()
     assert v_before["physical_qty"] == 10
     assert v_before["reserved_qty"] == 0
 
@@ -160,7 +184,9 @@ def test_reserve_cart_atomic_stock_reservation(db_conn):
     )
     assert order.status == "RESERVED"
 
-    v_after = db_conn.execute("SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;").fetchone()
+    v_after = db_conn.execute(
+        "SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;"
+    ).fetchone()
     # Physical stock unchanged, reserved_qty increments by 3
     assert v_after["physical_qty"] == 10
     assert v_after["reserved_qty"] == 3
@@ -172,7 +198,9 @@ def test_reserve_cart_atomic_stock_reservation(db_conn):
 
 def test_competing_last_stock_purchases(db_conn):
     # Set variant 1 to physical_qty=1, reserved_qty=0 (exactly 1 unit left)
-    db_conn.execute("UPDATE variants SET physical_qty = 1, reserved_qty = 0 WHERE id = 1;")
+    db_conn.execute(
+        "UPDATE variants SET physical_qty = 1, reserved_qty = 0 WHERE id = 1;"
+    )
 
     items = [CartItem(variant_id=1, qty=1)]
     # First customer reserves the last unit
@@ -198,7 +226,9 @@ def test_competing_last_stock_purchases(db_conn):
     assert exc_info.value.code == "INSUFFICIENT_STOCK"
 
     # Stock invariant maintained
-    v = db_conn.execute("SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;").fetchone()
+    v = db_conn.execute(
+        "SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;"
+    ).fetchone()
     assert v["physical_qty"] == 1
     assert v["reserved_qty"] == 1
 
@@ -206,7 +236,13 @@ def test_competing_last_stock_purchases(db_conn):
 def test_quantity_limits_and_duplicate_variants(db_conn):
     # Empty cart
     with pytest.raises(DomainError) as exc:
-        reserve_cart(db_conn, user_id=1, items=[], idempotency_key="idemp_empty", create_payment_fn=mock_create_payment)
+        reserve_cart(
+            db_conn,
+            user_id=1,
+            items=[],
+            idempotency_key="idemp_empty",
+            create_payment_fn=mock_create_payment,
+        )
     assert exc.value.http_status == 422
     assert exc.value.code == "VALIDATION"
 
@@ -317,19 +353,27 @@ def test_fulfill_merch_order_lifecycle(db_conn):
     assert order.status == "RESERVED"
 
     # Fulfillment succeeds
-    res = fulfill_merch_order(db_conn, payment, manual=False, now="2026-10-10T10:05:00Z")
+    res = fulfill_merch_order(
+        db_conn, payment, manual=False, now="2026-10-10T10:05:00Z"
+    )
     assert res.outcome == "FULFILLED"
 
-    o_row = db_conn.execute("SELECT status FROM merch_orders WHERE id = ?;", (order.id,)).fetchone()
+    o_row = db_conn.execute(
+        "SELECT status FROM merch_orders WHERE id = ?;", (order.id,)
+    ).fetchone()
     assert o_row["status"] == "PAID"
 
     # Reserved stock remains reserved until staff pickup
-    v = db_conn.execute("SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;").fetchone()
+    v = db_conn.execute(
+        "SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;"
+    ).fetchone()
     assert v["physical_qty"] == 10
     assert v["reserved_qty"] == 2
 
     # Idempotent replay: second fulfillment call returns FULFILLED without change
-    res2 = fulfill_merch_order(db_conn, payment, manual=False, now="2026-10-10T10:06:00Z")
+    res2 = fulfill_merch_order(
+        db_conn, payment, manual=False, now="2026-10-10T10:06:00Z"
+    )
     assert res2.outcome == "FULFILLED"
 
 
@@ -350,12 +394,16 @@ def test_delayed_callback_on_expired_order_releases_stock(db_conn):
     assert v1["reserved_qty"] == 2
 
     # Delayed callback arrives at 10:15:00Z (after expiry)
-    res = fulfill_merch_order(db_conn, payment, manual=False, now="2026-10-10T10:15:00Z")
+    res = fulfill_merch_order(
+        db_conn, payment, manual=False, now="2026-10-10T10:15:00Z"
+    )
     assert res.outcome == "UNFULFILLABLE"
     assert res.reason == "TARGET_NOT_LIVE"
 
     # Order marked EXPIRED and reserved stock released
-    o_row = db_conn.execute("SELECT status FROM merch_orders WHERE id = ?;", (order.id,)).fetchone()
+    o_row = db_conn.execute(
+        "SELECT status FROM merch_orders WHERE id = ?;", (order.id,)
+    ).fetchone()
     assert o_row["status"] == "EXPIRED"
 
     v2 = db_conn.execute("SELECT reserved_qty FROM variants WHERE id = 1;").fetchone()
@@ -375,14 +423,18 @@ def test_manual_fulfillment_of_expired_order(db_conn):
     )
     # Expire order via background sweep
     expire_orders(db_conn, as_of="2026-10-10T10:12:00Z")
-    o_row = db_conn.execute("SELECT status FROM merch_orders WHERE id = ?;", (order.id,)).fetchone()
+    o_row = db_conn.execute(
+        "SELECT status FROM merch_orders WHERE id = ?;", (order.id,)
+    ).fetchone()
     assert o_row["status"] == "EXPIRED"
 
     # Staff manual fulfillment checks live stock, re-reserves, and marks PAID
     res = fulfill_merch_order(db_conn, payment, manual=True, now="2026-10-10T10:15:00Z")
     assert res.outcome == "FULFILLED"
 
-    o_row2 = db_conn.execute("SELECT status FROM merch_orders WHERE id = ?;", (order.id,)).fetchone()
+    o_row2 = db_conn.execute(
+        "SELECT status FROM merch_orders WHERE id = ?;", (order.id,)
+    ).fetchone()
     assert o_row2["status"] == "PAID"
 
     v = db_conn.execute("SELECT reserved_qty FROM variants WHERE id = 1;").fetchone()
@@ -431,20 +483,27 @@ def test_mark_picked_up_decrements_both_physical_and_reserved(db_conn):
     )
     fulfill_merch_order(db_conn, payment, manual=False, now="2026-10-10T10:05:00Z")
 
-    v_before = db_conn.execute("SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;").fetchone()
+    v_before = db_conn.execute(
+        "SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;"
+    ).fetchone()
     assert v_before["physical_qty"] == 10
     assert v_before["reserved_qty"] == 4
 
     # Staff performs pickup
     mark_picked_up(db_conn, order_id=order.id, staff_id=3)
 
-    o_row = db_conn.execute("SELECT status, picked_up_by, picked_up_at FROM merch_orders WHERE id = ?;", (order.id,)).fetchone()
+    o_row = db_conn.execute(
+        "SELECT status, picked_up_by, picked_up_at FROM merch_orders WHERE id = ?;",
+        (order.id,),
+    ).fetchone()
     assert o_row["status"] == "PICKED_UP"
     assert o_row["picked_up_by"] == 3
     assert o_row["picked_up_at"] is not None
 
     # Both physical_qty and reserved_qty fall by qty
-    v_after = db_conn.execute("SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;").fetchone()
+    v_after = db_conn.execute(
+        "SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;"
+    ).fetchone()
     assert v_after["physical_qty"] == 6
     assert v_after["reserved_qty"] == 0
 
@@ -495,11 +554,15 @@ def test_refund_before_pickup_releases_reserved_stock(db_conn):
     # Apply refund
     apply_refund_merch(db_conn, payment, now="2026-10-10T10:08:00Z")
 
-    o_row = db_conn.execute("SELECT status FROM merch_orders WHERE id = ?;", (order.id,)).fetchone()
+    o_row = db_conn.execute(
+        "SELECT status FROM merch_orders WHERE id = ?;", (order.id,)
+    ).fetchone()
     assert o_row["status"] == "REFUNDED"
 
     # Reserved stock released, physical stock untouched
-    v = db_conn.execute("SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;").fetchone()
+    v = db_conn.execute(
+        "SELECT physical_qty, reserved_qty FROM variants WHERE id = 1;"
+    ).fetchone()
     assert v["physical_qty"] == 10
     assert v["reserved_qty"] == 0
 
@@ -538,7 +601,9 @@ def test_cancel_order_unpaid_releases_reserved_stock(db_conn):
     # User cancels unpaid reservation
     cancel_order(db_conn, handlers=None, order_id=order.id, actor_id=1)
 
-    o_row = db_conn.execute("SELECT status FROM merch_orders WHERE id = ?;", (order.id,)).fetchone()
+    o_row = db_conn.execute(
+        "SELECT status FROM merch_orders WHERE id = ?;", (order.id,)
+    ).fetchone()
     assert o_row["status"] == "CANCELLED"
 
     v = db_conn.execute("SELECT reserved_qty FROM variants WHERE id = 1;").fetchone()
@@ -561,17 +626,23 @@ def test_cancel_order_paid_calls_refund_payment(db_conn):
         create_payment_fn=create_payment,
     )
     # Simulate payment success
-    db_conn.execute("UPDATE payments SET status = 'SUCCEEDED' WHERE id = ?;", (payment.id,))
+    db_conn.execute(
+        "UPDATE payments SET status = 'SUCCEEDED' WHERE id = ?;", (payment.id,)
+    )
     fulfill_merch_order(db_conn, payment, manual=False, now=clock.now())
 
     # Cancel paid order via refund_payment
     handlers = {"MERCH": MERCH_PURPOSE_HANDLER}
     cancel_order(db_conn, handlers=handlers, order_id=order.id, actor_id=1)
 
-    o_row = db_conn.execute("SELECT status FROM merch_orders WHERE id = ?;", (order.id,)).fetchone()
+    o_row = db_conn.execute(
+        "SELECT status FROM merch_orders WHERE id = ?;", (order.id,)
+    ).fetchone()
     assert o_row["status"] == "REFUNDED"
 
-    p_row = db_conn.execute("SELECT status FROM payments WHERE id = ?;", (payment.id,)).fetchone()
+    p_row = db_conn.execute(
+        "SELECT status FROM payments WHERE id = ?;", (payment.id,)
+    ).fetchone()
     assert p_row["status"] == "REFUNDED"
 
     v = db_conn.execute("SELECT reserved_qty FROM variants WHERE id = 1;").fetchone()

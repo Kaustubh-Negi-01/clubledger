@@ -53,3 +53,13 @@ data/
 
 # Package manager locks
 uv.lock
+
+# Local configuration, database runtime and private uploads
+.env.*
+!.env.example
+database/runtime/*
+!database/runtime/.gitkeep
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm

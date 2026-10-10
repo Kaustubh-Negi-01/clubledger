@@ -31,6 +31,9 @@ jobs:
         run: |
           pytest -q
 
+      - name: Check backend code
+        run: python -m ruff check backend tests
+
       - name: Check requirement coverage (progress mode)
         run: |
           python -m tests.req_coverage --mode progress

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{# Snapshot: presentation only. Values are supplied by the backend; forms submit to API routes. #}
+{% block title %}
+    Archived financial snapshot · ClubLedger
+{% endblock %}
+{% block header_title %}
+    Archived financial snapshot
+{% endblock %}
+{% block content %}
+    <section class="panel">
+        <h2>
+            {{ totals.label }}
+        </h2>
+        <p>
+            Taken
+            {{ snapshot.taken_at }}
+            · Journal watermark
+            {{ snapshot.watermark_entry_id }}
+        </p>
+        <p class="muted pre-wrap">
+            SHA-256:
+            <code>
+                {{ snapshot.content_sha256 }}
+            </code>
+        </p>
+    </section>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>
+                        Account
+                    </th>
+                    <th>
+                        Opening
+                    </th>
+                    <th>
+                        Movement
+                    </th>
+                    <th>
+                        Closing
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in totals.accounts %}
+                    <tr>
+                        <td>
+                            {{ a.code }}
+                            ·
+                            {{ a.name }}
+                        </td>
+                        <td>
+                            ₹{{ '%.2f'|format(a.opening/100) }}
+                        </td>
+                        <td>
+                            ₹{{ '%.2f'|format(a.movement/100) }}
+                        </td>
+                        <td>
+                            ₹{{ '%.2f'|format(a.closing/100) }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <a class="button" href="/admin/handover">
+        Officer handover
+    </a>
+{% endblock %}

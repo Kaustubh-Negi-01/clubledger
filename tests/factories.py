@@ -27,7 +27,9 @@ def create_user(
 
     if roles:
         for r_code in roles:
-            role_row = conn.execute("SELECT id FROM roles WHERE code = ?;", (r_code,)).fetchone()
+            role_row = conn.execute(
+                "SELECT id FROM roles WHERE code = ?;", (r_code,)
+            ).fetchone()
             if role_row:
                 role_id = role_row["id"]
                 conn.execute(
@@ -57,7 +59,9 @@ def create_event(
 ) -> Dict[str, Any]:
     """Create an event in the events table."""
     if term_id is None:
-        term_row = conn.execute("SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;").fetchone()
+        term_row = conn.execute(
+            "SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;"
+        ).fetchone()
         term_id = term_row["id"] if term_row else 1
 
     now_str = clock.now()
@@ -88,9 +92,11 @@ def create_event(
     }
 
 
-def login_user(app_client: Any, user: Dict[str, Any], conn: sqlite3.Connection) -> tuple[str, str]:
+def login_user(
+    app_client: Any, user: Dict[str, Any], conn: sqlite3.Connection
+) -> tuple[str, str]:
     """Create a session for user and set session cookie on app_client.
-    
+
     Returns (raw_session_token, csrf_token).
     """
     raw_token, csrf_token = create_session(conn, user["id"])

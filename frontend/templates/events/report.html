@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{# Events report: presentation only. Values are supplied by the backend; forms submit to API routes. #}
+{% block title %}
+    Report:
+    {{ event.title }}
+    - ClubLedger
+{% endblock %}
+{% block header_title %}
+    Event Report
+{% endblock %}
+{% block content %}
+    <section aria-labelledby="report-heading">
+        <h2 id="report-heading">
+            Attendance &amp; Financial Summary:
+            {{ event.title }}
+        </h2>
+        <div class="report-container events-report-layout-1">
+            <header>
+                <h3>
+                    {{ event.title }}
+                </h3>
+                <p>
+                    <strong>
+                        Venue:
+                    </strong>
+                    {{ event.venue }}
+                    •
+                    <strong>
+                        Capacity:
+                    </strong>
+                    {{ event.capacity }}
+                </p>
+            </header>
+            <div class="metrics-section events-report-layout-2">
+                <h4>
+                    Attendance Breakdown
+                </h4>
+                <table class="events-report-layout-3">
+                    <tbody>
+                        <tr class="events-report-layout-4">
+                            <th scope="row" class="events-report-layout-5">
+                                Tickets Sold:
+                            </th>
+                            <td class="events-report-layout-6">
+                                {{ report.sold }}
+                            </td>
+                        </tr>
+                        <tr class="events-report-layout-7">
+                            <th scope="row"
+                            class="events-report-layout-8">
+                                Attended (Checked-in):
+                            </th>
+                            <td class="events-report-layout-9">
+                                {{ report.attended }}
+                            </td>
+                        </tr>
+                        <tr class="events-report-layout-10">
+                            <th scope="row" class="events-report-layout-11">
+                                No-Shows:
+                            </th>
+                            <td class="events-report-layout-12">
+                                {{ report.no_shows }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <h4>
+                    Financial Proceeds
+                </h4>
+                <table class="events-report-layout-13">
+                    <tbody>
+                        <tr class="events-report-layout-14">
+                            <th scope="row" class="events-report-layout-15">
+                                Gross Revenue:
+                            </th>
+                            <td class="events-report-layout-16">
+                                ₹{{ gross_inr }}
+                            </td>
+                        </tr>
+                        <tr class="events-report-layout-17">
+                            <th scope="row" class="events-report-layout-18">
+                                Refunds Issued:
+                            </th>
+                            <td class="events-report-layout-19">
+                                -₹{{ refunded_inr }}
+                            </td>
+                        </tr>
+                        <tr class="events-report-layout-20">
+                            <th scope="row" class="events-report-layout-21">
+                                Net Proceeds:
+                            </th>
+                            <td class="events-report-layout-22">
+                                ₹{{ net_proceeds_inr }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <nav aria-label="Navigation">
+            <p>
+                <a href="/checkin/{{ event.id }}">
+                    ← Return to Check-In Scanner
+                </a>
+            </p>
+            <p>
+                <a href="/events">
+                    ← Back to Events
+                </a>
+            </p>
+        </nav>
+    </section>
+{% endblock %}

@@ -51,11 +51,15 @@ class MockJournal:
         self.receipt_calls.append(event_row["id"])
         return len(self.receipt_calls)
 
-    def post_settlement(self, conn, source_type: str, source_id: int, amount_paise: int) -> int:
+    def post_settlement(
+        self, conn, source_type: str, source_id: int, amount_paise: int
+    ) -> int:
         self.settlement_calls.append((source_type, source_id, amount_paise))
         return len(self.settlement_calls)
 
-    def reverse_all_for_source(self, conn, source_type: str, source_id: int, memo: str) -> list[int]:
+    def reverse_all_for_source(
+        self, conn, source_type: str, source_id: int, memo: str
+    ) -> list[int]:
         self.reverse_calls.append((source_type, source_id, memo))
         return [1]
 
@@ -94,7 +98,9 @@ def test_db(tmp_path: Path):
 
 @pytest.fixture
 def test_handlers():
-    def dues_fulfill(conn, payment: Payment, *, manual: bool, now: str) -> FulfillResult:
+    def dues_fulfill(
+        conn, payment: Payment, *, manual: bool, now: str
+    ) -> FulfillResult:
         return FulfillResult(outcome="FULFILLED")
 
     def dues_check_refund(conn, payment: Payment) -> None:
@@ -110,7 +116,9 @@ def test_handlers():
         apply_refund=dues_apply_refund,
     )
 
-    def blocked_fulfill(conn, payment: Payment, *, manual: bool, now: str) -> FulfillResult:
+    def blocked_fulfill(
+        conn, payment: Payment, *, manual: bool, now: str
+    ) -> FulfillResult:
         return FulfillResult(outcome="UNFULFILLABLE", reason="SOLD_OUT")
 
     def blocked_check_refund(conn, payment: Payment) -> None:
@@ -134,7 +142,12 @@ def test_create_payment_validation(test_db: str):
     try:
         # Success
         p = create_payment(
-            conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+            conn,
+            user_id=1,
+            purpose="DUES",
+            ref_table="memberships",
+            ref_id=10,
+            amount_paise=25000,
         )
         assert p.id > 0
         assert p.status == "CREATED"
@@ -145,14 +158,24 @@ def test_create_payment_validation(test_db: str):
         # Non-positive amount
         with pytest.raises(DomainError) as exc:
             create_payment(
-                conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=0
+                conn,
+                user_id=1,
+                purpose="DUES",
+                ref_table="memberships",
+                ref_id=10,
+                amount_paise=0,
             )
         assert exc.value.code == "VALIDATION"
 
         # Inactive user
         with pytest.raises(DomainError) as exc:
             create_payment(
-                conn, user_id=2, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+                conn,
+                user_id=2,
+                purpose="DUES",
+                ref_table="memberships",
+                ref_id=10,
+                amount_paise=25000,
             )
         assert exc.value.code == "VALIDATION"
     finally:
@@ -164,7 +187,12 @@ def test_handle_event_happy_path(test_db: str, test_handlers: Handlers):
     conn = connect(test_db)
     try:
         p = create_payment(
-            conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+            conn,
+            user_id=1,
+            purpose="DUES",
+            ref_table="memberships",
+            ref_id=10,
+            amount_paise=25000,
         )
 
         payload = {
@@ -191,7 +219,9 @@ def test_handle_event_happy_path(test_db: str, test_handlers: Handlers):
         assert outcome.payment_id == p.id
 
         # Verify payment updated in DB
-        row = conn.execute("SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)).fetchone()
+        row = conn.execute(
+            "SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)
+        ).fetchone()
         assert row["status"] == "SUCCEEDED"
         assert row["fulfillment"] == "FULFILLED"
 
@@ -202,13 +232,20 @@ def test_handle_event_happy_path(test_db: str, test_handlers: Handlers):
         conn.close()
 
 
-def test_handle_event_journal_failure_rolls_back_atomically(test_db: str, test_handlers: Handlers):
+def test_handle_event_journal_failure_rolls_back_atomically(
+    test_db: str, test_handlers: Handlers
+):
     journal = MockJournal()
     journal.fail_on_received = True
 
     with unit_of_work(test_db) as conn:
         p = create_payment(
-            conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+            conn,
+            user_id=1,
+            purpose="DUES",
+            ref_table="memberships",
+            ref_id=10,
+            amount_paise=25000,
         )
 
     payload = {
@@ -236,7 +273,9 @@ def test_handle_event_journal_failure_rolls_back_atomically(test_db: str, test_h
     # After rollback: payment remains CREATED, zero payment_events recorded
     conn_verify = connect(test_db)
     try:
-        p_row = conn_verify.execute("SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)).fetchone()
+        p_row = conn_verify.execute(
+            "SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)
+        ).fetchone()
         assert p_row["status"] == "CREATED"
         assert p_row["fulfillment"] == "NONE"
 
@@ -253,7 +292,12 @@ def test_handle_event_replay_and_conflict(test_db: str, test_handlers: Handlers)
     conn = connect(test_db)
     try:
         p = create_payment(
-            conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+            conn,
+            user_id=1,
+            purpose="DUES",
+            ref_table="memberships",
+            ref_id=10,
+            amount_paise=25000,
         )
 
         payload = {
@@ -317,32 +361,45 @@ def test_handle_event_repeated_notification(test_db: str, test_handlers: Handler
     conn = connect(test_db)
     try:
         p = create_payment(
-            conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+            conn,
+            user_id=1,
+            purpose="DUES",
+            ref_table="memberships",
+            ref_id=10,
+            amount_paise=25000,
         )
 
         # First delivery
-        p1 = json.dumps({
-            "event_id": "evt_first",
-            "type": "payment.succeeded",
-            "payment_id": p.public_id,
-            "user_id": 1,
-            "amount_paise": 25000,
-            "currency": "INR",
-        }).encode("utf-8")
-        out1 = handle_event(conn, test_handlers, p1, "t=1,v1=a", "2026-08-01T10:00:00Z", journal=journal)
+        p1 = json.dumps(
+            {
+                "event_id": "evt_first",
+                "type": "payment.succeeded",
+                "payment_id": p.public_id,
+                "user_id": 1,
+                "amount_paise": 25000,
+                "currency": "INR",
+            }
+        ).encode("utf-8")
+        out1 = handle_event(
+            conn, test_handlers, p1, "t=1,v1=a", "2026-08-01T10:00:00Z", journal=journal
+        )
         assert out1.outcome == "APPLIED"
         assert len(journal.received_calls) == 1
 
         # Second delivery with FRESH event_id on already paid payment -> REPEATED_NOTIFICATION / NO_EFFECT
-        p2 = json.dumps({
-            "event_id": "evt_second",
-            "type": "payment.succeeded",
-            "payment_id": p.public_id,
-            "user_id": 1,
-            "amount_paise": 25000,
-            "currency": "INR",
-        }).encode("utf-8")
-        out2 = handle_event(conn, test_handlers, p2, "t=1,v1=a", "2026-08-01T10:05:00Z", journal=journal)
+        p2 = json.dumps(
+            {
+                "event_id": "evt_second",
+                "type": "payment.succeeded",
+                "payment_id": p.public_id,
+                "user_id": 1,
+                "amount_paise": 25000,
+                "currency": "INR",
+            }
+        ).encode("utf-8")
+        out2 = handle_event(
+            conn, test_handlers, p2, "t=1,v1=a", "2026-08-01T10:05:00Z", journal=journal
+        )
         assert out2.outcome == "NO_EFFECT"
         assert out2.reason == "REPEATED_NOTIFICATION"
         # Zero extra journal writes
@@ -356,24 +413,40 @@ def test_handle_event_late_success_after_expired(test_db: str, test_handlers: Ha
     conn = connect(test_db)
     try:
         p = create_payment(
-            conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+            conn,
+            user_id=1,
+            purpose="DUES",
+            ref_table="memberships",
+            ref_id=10,
+            amount_paise=25000,
         )
         conn.execute("UPDATE payments SET status = 'EXPIRED' WHERE id = ?;", (p.id,))
 
-        payload = json.dumps({
-            "event_id": "evt_late_expired",
-            "type": "payment.succeeded",
-            "payment_id": p.public_id,
-            "user_id": 1,
-            "amount_paise": 25000,
-            "currency": "INR",
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "event_id": "evt_late_expired",
+                "type": "payment.succeeded",
+                "payment_id": p.public_id,
+                "user_id": 1,
+                "amount_paise": 25000,
+                "currency": "INR",
+            }
+        ).encode("utf-8")
 
-        out = handle_event(conn, test_handlers, payload, "t=1,v1=a", "2026-08-01T10:00:00Z", journal=journal)
+        out = handle_event(
+            conn,
+            test_handlers,
+            payload,
+            "t=1,v1=a",
+            "2026-08-01T10:00:00Z",
+            journal=journal,
+        )
         assert out.outcome == "APPLIED_UNFULFILLED"
         assert out.reason == "LATE_AFTER_EXPIRED"
 
-        p_row = conn.execute("SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)).fetchone()
+        p_row = conn.execute(
+            "SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)
+        ).fetchone()
         assert p_row["status"] == "SUCCEEDED"
         assert p_row["fulfillment"] == "UNFULFILLED"
 
@@ -389,7 +462,12 @@ def test_refund_and_resolution(test_db: str, test_handlers: Handlers):
     try:
         # Create unfulfilled payment
         p = create_payment(
-            conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+            conn,
+            user_id=1,
+            purpose="DUES",
+            ref_table="memberships",
+            ref_id=10,
+            amount_paise=25000,
         )
         conn.execute(
             "UPDATE payments SET status = 'SUCCEEDED', fulfillment = 'UNFULFILLED' WHERE id = ?;",
@@ -397,36 +475,51 @@ def test_refund_and_resolution(test_db: str, test_handlers: Handlers):
         )
 
         # 1. Resolve via FULFILL
-        resolve_unfulfilled(conn, test_handlers, p.id, action="FULFILL", actor_id=1, journal=journal)
-        p_row = conn.execute("SELECT fulfillment FROM payments WHERE id = ?;", (p.id,)).fetchone()
+        resolve_unfulfilled(
+            conn, test_handlers, p.id, action="FULFILL", actor_id=1, journal=journal
+        )
+        p_row = conn.execute(
+            "SELECT fulfillment FROM payments WHERE id = ?;", (p.id,)
+        ).fetchone()
         assert p_row["fulfillment"] == "FULFILLED"
         assert p.id in journal.late_fulfilled_calls
 
         # 2. Refund fulfilled payment
         refund_payment(conn, test_handlers, p.id, actor_id=1, journal=journal)
-        p_ref = conn.execute("SELECT status FROM payments WHERE id = ?;", (p.id,)).fetchone()
+        p_ref = conn.execute(
+            "SELECT status FROM payments WHERE id = ?;", (p.id,)
+        ).fetchone()
         assert p_ref["status"] == "REFUNDED"
         assert len(journal.reverse_calls) == 1
     finally:
         conn.close()
 
 
-def test_journal_failure_rolls_back_payment_and_event(test_db: str, test_handlers: Handlers):
+def test_journal_failure_rolls_back_payment_and_event(
+    test_db: str, test_handlers: Handlers
+):
     """Regress that journal failure rolls back payment status, fulfillment, and payment_event row."""
     conn = connect(test_db)
     p = create_payment(
-        conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+        conn,
+        user_id=1,
+        purpose="DUES",
+        ref_table="memberships",
+        ref_id=10,
+        amount_paise=25000,
     )
     conn.close()
 
-    payload = json.dumps({
-        "event_id": "evt_fail_journal",
-        "type": "payment.succeeded",
-        "payment_id": p.public_id,
-        "user_id": 1,
-        "amount_paise": 25000,
-        "currency": "INR",
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "event_id": "evt_fail_journal",
+            "type": "payment.succeeded",
+            "payment_id": p.public_id,
+            "user_id": 1,
+            "amount_paise": 25000,
+            "currency": "INR",
+        }
+    ).encode("utf-8")
 
     broken_journal = MockJournal()
     broken_journal.fail_on_received = True
@@ -446,11 +539,15 @@ def test_journal_failure_rolls_back_payment_and_event(test_db: str, test_handler
     # Verify rollback on database: payment still CREATED/NONE, event not recorded
     conn = connect(test_db)
     try:
-        p_row = conn.execute("SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)).fetchone()
+        p_row = conn.execute(
+            "SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)
+        ).fetchone()
         assert p_row["status"] == "CREATED"
         assert p_row["fulfillment"] == "NONE"
 
-        e_row = conn.execute("SELECT 1 FROM payment_events WHERE event_id = 'evt_fail_journal';").fetchone()
+        e_row = conn.execute(
+            "SELECT 1 FROM payment_events WHERE event_id = 'evt_fail_journal';"
+        ).fetchone()
         assert e_row is None
     finally:
         conn.close()
@@ -461,16 +558,23 @@ def test_missing_journal_service_raises_loudly(test_db: str, test_handlers: Hand
     conn = connect(test_db)
     try:
         p = create_payment(
-            conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+            conn,
+            user_id=1,
+            purpose="DUES",
+            ref_table="memberships",
+            ref_id=10,
+            amount_paise=25000,
         )
-        payload = json.dumps({
-            "event_id": "evt_broken_journal_methods",
-            "type": "payment.succeeded",
-            "payment_id": p.public_id,
-            "user_id": 1,
-            "amount_paise": 25000,
-            "currency": "INR",
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "event_id": "evt_broken_journal_methods",
+                "type": "payment.succeeded",
+                "payment_id": p.public_id,
+                "user_id": 1,
+                "amount_paise": 25000,
+                "currency": "INR",
+            }
+        ).encode("utf-8")
 
         class EmptyJournal:
             pass
@@ -489,7 +593,9 @@ def test_missing_journal_service_raises_loudly(test_db: str, test_handlers: Hand
         conn.close()
 
 
-def test_target_expired_hold_prevents_fulfillment(test_db: str, test_handlers: Handlers):
+def test_target_expired_hold_prevents_fulfillment(
+    test_db: str, test_handlers: Handlers
+):
     """At callback time, an expired hold must not fulfill even if status is HELD; outcome is APPLIED_UNFULFILLED."""
     conn = connect(test_db)
     try:
@@ -518,19 +624,26 @@ def test_target_expired_hold_prevents_fulfillment(test_db: str, test_handlers: H
             """
         )
         p = create_payment(
-            conn, user_id=1, purpose="TICKET", ref_table="ticket_holds", ref_id=50, amount_paise=150000
+            conn,
+            user_id=1,
+            purpose="TICKET",
+            ref_table="ticket_holds",
+            ref_id=50,
+            amount_paise=150000,
         )
         conn.commit()
 
         journal = MockJournal()
-        payload = json.dumps({
-            "event_id": "evt_expired_hold_success",
-            "type": "payment.succeeded",
-            "payment_id": p.public_id,
-            "user_id": 1,
-            "amount_paise": 150000,
-            "currency": "INR",
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "event_id": "evt_expired_hold_success",
+                "type": "payment.succeeded",
+                "payment_id": p.public_id,
+                "user_id": 1,
+                "amount_paise": 150000,
+                "currency": "INR",
+            }
+        ).encode("utf-8")
 
         # Callback arrives at 10:00:00Z (after hold expired at 09:30:00Z)
         out = handle_event(
@@ -545,12 +658,16 @@ def test_target_expired_hold_prevents_fulfillment(test_db: str, test_handlers: H
         assert out.outcome == "APPLIED_UNFULFILLED"
         assert out.reason == "LATE_AFTER_EXPIRED"
 
-        p_row = conn.execute("SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)).fetchone()
+        p_row = conn.execute(
+            "SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)
+        ).fetchone()
         assert p_row["status"] == "SUCCEEDED"
         assert p_row["fulfillment"] == "UNFULFILLED"
 
         # Verify no tickets were issued
-        ticket_count = conn.execute("SELECT count(*) FROM tickets WHERE hold_id = 50;").fetchone()[0]
+        ticket_count = conn.execute(
+            "SELECT count(*) FROM tickets WHERE hold_id = 50;"
+        ).fetchone()[0]
         assert ticket_count == 0
 
         # Verify journal posted as unfulfilled (Dr 1100 / Cr 2000)
@@ -560,30 +677,48 @@ def test_target_expired_hold_prevents_fulfillment(test_db: str, test_handlers: H
         conn.close()
 
 
-def test_settled_payment_refund_reverses_all_entries(test_db: str, test_handlers: Handlers):
+def test_settled_payment_refund_reverses_all_entries(
+    test_db: str, test_handlers: Handlers
+):
     """Refunding a settled payment must reverse both received and settlement journal entries."""
     from clubledger.journal import service as journal_svc
 
     conn = connect(test_db)
     try:
         p = create_payment(
-            conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+            conn,
+            user_id=1,
+            purpose="DUES",
+            ref_table="memberships",
+            ref_id=10,
+            amount_paise=25000,
         )
-        payload = json.dumps({
-            "event_id": "evt_settled_succ",
-            "type": "payment.succeeded",
-            "payment_id": p.public_id,
-            "user_id": 1,
-            "amount_paise": 25000,
-            "currency": "INR",
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "event_id": "evt_settled_succ",
+                "type": "payment.succeeded",
+                "payment_id": p.public_id,
+                "user_id": 1,
+                "amount_paise": 25000,
+                "currency": "INR",
+            }
+        ).encode("utf-8")
 
         # 1. Success event -> posts received Dr 1100 / Cr 4000
-        out = handle_event(conn, test_handlers, payload, "t=1,v1=a", "2026-08-01T10:00:00Z", journal=journal_svc)
+        out = handle_event(
+            conn,
+            test_handlers,
+            payload,
+            "t=1,v1=a",
+            "2026-08-01T10:00:00Z",
+            journal=journal_svc,
+        )
         assert out.outcome == "APPLIED"
 
         # 2. Settle payment -> posts Dr 1000 / Cr 1100
-        settled_count = settle_payments(conn, as_of="2026-08-03T10:00:00Z", journal=journal_svc)
+        settled_count = settle_payments(
+            conn, as_of="2026-08-03T10:00:00Z", journal=journal_svc
+        )
         assert settled_count == 1
 
         # Check posted journal entries count for this payment (received + settlement = 2)
@@ -605,6 +740,7 @@ def test_settled_payment_refund_reverses_all_entries(test_db: str, test_handlers
 
         # Net balance on clearing 1100 must be 0
         from clubledger.reports.service import balance
+
         b1100 = balance(conn, "1100")
         assert b1100 == 0
 
@@ -622,43 +758,71 @@ def test_late_failed_payment_success_unfulfilled(test_db: str, test_handlers: Ha
     conn = connect(test_db)
     try:
         p = create_payment(
-            conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+            conn,
+            user_id=1,
+            purpose="DUES",
+            ref_table="memberships",
+            ref_id=10,
+            amount_paise=25000,
         )
 
         # 1. Send failure event
-        fail_payload = json.dumps({
-            "event_id": "evt_prior_fail",
-            "type": "payment.failed",
-            "payment_id": p.public_id,
-            "user_id": 1,
-            "amount_paise": 25000,
-            "currency": "INR",
-        }).encode("utf-8")
-        out_fail = handle_event(conn, test_handlers, fail_payload, "t=1,v1=a", "2026-08-01T10:00:00Z", journal=journal_svc)
+        fail_payload = json.dumps(
+            {
+                "event_id": "evt_prior_fail",
+                "type": "payment.failed",
+                "payment_id": p.public_id,
+                "user_id": 1,
+                "amount_paise": 25000,
+                "currency": "INR",
+            }
+        ).encode("utf-8")
+        out_fail = handle_event(
+            conn,
+            test_handlers,
+            fail_payload,
+            "t=1,v1=a",
+            "2026-08-01T10:00:00Z",
+            journal=journal_svc,
+        )
         assert out_fail.outcome == "APPLIED"
 
-        p_fail = conn.execute("SELECT status FROM payments WHERE id = ?;", (p.id,)).fetchone()
+        p_fail = conn.execute(
+            "SELECT status FROM payments WHERE id = ?;", (p.id,)
+        ).fetchone()
         assert p_fail["status"] == "FAILED"
 
         # 2. Late success arrives
-        succ_payload = json.dumps({
-            "event_id": "evt_late_after_fail",
-            "type": "payment.succeeded",
-            "payment_id": p.public_id,
-            "user_id": 1,
-            "amount_paise": 25000,
-            "currency": "INR",
-        }).encode("utf-8")
-        out_succ = handle_event(conn, test_handlers, succ_payload, "t=1,v1=a", "2026-08-01T12:00:00Z", journal=journal_svc)
+        succ_payload = json.dumps(
+            {
+                "event_id": "evt_late_after_fail",
+                "type": "payment.succeeded",
+                "payment_id": p.public_id,
+                "user_id": 1,
+                "amount_paise": 25000,
+                "currency": "INR",
+            }
+        ).encode("utf-8")
+        out_succ = handle_event(
+            conn,
+            test_handlers,
+            succ_payload,
+            "t=1,v1=a",
+            "2026-08-01T12:00:00Z",
+            journal=journal_svc,
+        )
         assert out_succ.outcome == "APPLIED_UNFULFILLED"
         assert out_succ.reason == "LATE_AFTER_FAILED"
 
-        p_row = conn.execute("SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)).fetchone()
+        p_row = conn.execute(
+            "SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)
+        ).fetchone()
         assert p_row["status"] == "SUCCEEDED"
         assert p_row["fulfillment"] == "UNFULFILLED"
 
         # Check journal: 1 entry posted (Dr 1100 / Cr 2000)
         from clubledger.reports.service import balance
+
         b2000 = balance(conn, "2000")
         assert b2000 == 25000
     finally:

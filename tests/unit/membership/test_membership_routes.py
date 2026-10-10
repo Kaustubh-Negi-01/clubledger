@@ -7,7 +7,7 @@ from clubledger.core import clock
 from clubledger.core.auth import COOKIE_SESSION, create_session
 from clubledger.core.db import apply_migrations, connect
 from clubledger.main import create_app
-from clubledger.membership.routes import router as membership_router
+from clubledger.api.membership import router as membership_router
 from clubledger.membership.service import fulfill_dues, seed_plans, start_join
 from clubledger.membership.service import _genuine_create_payment
 import clubledger.membership.service as membership_service
@@ -23,12 +23,23 @@ def mock_create_payment(
     ref_id: int,
     amount_paise: int,
 ) -> Payment:
-    term_row = conn.execute("SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;").fetchone()
+    term_row = conn.execute(
+        "SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;"
+    ).fetchone()
     term_id = term_row["id"] if term_row else 1
     cur = conn.execute(
         "INSERT INTO payments (public_id, user_id, purpose, ref_table, ref_id, amount_paise, currency, status, fulfillment, term_id, created_at) "
         "VALUES (?, ?, ?, ?, ?, ?, 'INR', 'CREATED', 'NONE', ?, ?);",
-        (f"pay_pub_{ref_id}", user_id, purpose, ref_table, ref_id, amount_paise, term_id, clock.now()),
+        (
+            f"pay_pub_{ref_id}",
+            user_id,
+            purpose,
+            ref_table,
+            ref_id,
+            amount_paise,
+            term_id,
+            clock.now(),
+        ),
     )
     return Payment(
         id=cur.lastrowid,  # type: ignore
@@ -108,6 +119,7 @@ def test_join_get_requires_auth(app_client):
 
 def test_join_get_with_auth(app_client, monkeypatch):
     from clubledger.config import get_db_path
+
     conn = connect(get_db_path())
     raw_token, csrf_token = create_session(conn, 1)
     conn.close()
@@ -121,9 +133,12 @@ def test_join_get_with_auth(app_client, monkeypatch):
 
 def test_join_post_redirects_to_pay(app_client, monkeypatch):
     # Patch create_payment for isolated testing
-    monkeypatch.setattr(membership_service, "_genuine_create_payment", mock_create_payment)
+    monkeypatch.setattr(
+        membership_service, "_genuine_create_payment", mock_create_payment
+    )
 
     from clubledger.config import get_db_path
+
     conn = connect(get_db_path())
     raw_token, csrf_token = create_session(conn, 1)
     conn.close()
@@ -143,12 +158,17 @@ def test_join_post_redirects_to_pay(app_client, monkeypatch):
 
 
 def test_member_card_get(app_client, monkeypatch):
-    monkeypatch.setattr(membership_service, "_genuine_create_payment", mock_create_payment)
+    monkeypatch.setattr(
+        membership_service, "_genuine_create_payment", mock_create_payment
+    )
     from clubledger.config import get_db_path
+
     conn = connect(get_db_path())
     raw_token, csrf_token = create_session(conn, 1)
 
-    pay = start_join(conn, 1, 1, "card_idemp_key", create_payment_fn=mock_create_payment)
+    pay = start_join(
+        conn, 1, 1, "card_idemp_key", create_payment_fn=mock_create_payment
+    )
     fulfill_dues(conn, pay, manual=False, now=clock.now())
     conn.close()
 
@@ -161,6 +181,7 @@ def test_member_card_get(app_client, monkeypatch):
 
 def test_verify_staff_permission(app_client, monkeypatch):
     from clubledger.config import get_db_path
+
     conn = connect(get_db_path())
     # User 1 (no verifier role) -> 403
     raw_token_user, _ = create_session(conn, 1)

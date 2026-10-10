@@ -10,9 +10,9 @@ from clubledger.core.auth import COOKIE_SESSION, create_session
 from clubledger.core.db import apply_migrations, connect
 from clubledger.core.types import Payment
 from clubledger.main import create_app
-from clubledger.store.routes import router as store_router
+from clubledger.api.store import router as store_router
 from clubledger.store.service import fulfill_merch_order, seed_store
-import clubledger.store.routes as store_routes
+import clubledger.api.store as store_routes
 
 
 def mock_create_payment(
@@ -25,12 +25,23 @@ def mock_create_payment(
     amount_paise: int,
 ) -> Payment:
     """Mock payment creation for route tests."""
-    term_row = conn.execute("SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;").fetchone()
+    term_row = conn.execute(
+        "SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;"
+    ).fetchone()
     term_id = term_row["id"] if term_row else 1
     cur = conn.execute(
         "INSERT INTO payments (public_id, user_id, purpose, ref_table, ref_id, amount_paise, currency, status, fulfillment, term_id, created_at) "
         "VALUES (?, ?, ?, ?, ?, ?, 'INR', 'CREATED', 'NONE', ?, ?);",
-        (f"pay_pub_{ref_id}", user_id, purpose, ref_table, ref_id, amount_paise, term_id, clock.now()),
+        (
+            f"pay_pub_{ref_id}",
+            user_id,
+            purpose,
+            ref_table,
+            ref_id,
+            amount_paise,
+            term_id,
+            clock.now(),
+        ),
     )
     return Payment(
         id=cur.lastrowid,  # type: ignore
@@ -64,14 +75,32 @@ def app_client(monkeypatch, tmp_path):
     )
 
     # Seed roles and permissions
-    conn.execute("INSERT INTO roles (id, code, created_at) VALUES (1, 'admin', ?);", (clock.now(),))
-    conn.execute("INSERT INTO roles (id, code, created_at) VALUES (2, 'store_staff', ?);", (clock.now(),))
+    conn.execute(
+        "INSERT INTO roles (id, code, created_at) VALUES (1, 'admin', ?);",
+        (clock.now(),),
+    )
+    conn.execute(
+        "INSERT INTO roles (id, code, created_at) VALUES (2, 'store_staff', ?);",
+        (clock.now(),),
+    )
 
-    conn.execute("INSERT INTO permissions (id, code, created_at) VALUES (1, 'store.fulfill', ?);", (clock.now(),))
-    conn.execute("INSERT INTO permissions (id, code, created_at) VALUES (2, 'store.manage', ?);", (clock.now(),))
+    conn.execute(
+        "INSERT INTO permissions (id, code, created_at) VALUES (1, 'store.fulfill', ?);",
+        (clock.now(),),
+    )
+    conn.execute(
+        "INSERT INTO permissions (id, code, created_at) VALUES (2, 'store.manage', ?);",
+        (clock.now(),),
+    )
 
-    conn.execute("INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES (2, 1, ?);", (clock.now(),))
-    conn.execute("INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES (1, 2, ?);", (clock.now(),))
+    conn.execute(
+        "INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES (2, 1, ?);",
+        (clock.now(),),
+    )
+    conn.execute(
+        "INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES (1, 2, ?);",
+        (clock.now(),),
+    )
 
     # Seed users
     # User 1: Regular customer
@@ -126,8 +155,13 @@ def test_get_store_catalog_public(app_client):
     assert "Official Merchandise" in res.text
     assert "Club Classic Hoodie" in res.text
     assert "₹2500.00" in res.text
-    assert "Size S" in res.text
-    assert "Size M" in res.text
+    from bs4 import BeautifulSoup
+
+    visible_text = " ".join(
+        BeautifulSoup(res.text, "html.parser").get_text(" ", strip=True).split()
+    )
+    assert "Size S" in visible_text
+    assert "Size M" in visible_text
 
 
 def test_get_product_detail_public_and_404(app_client):
@@ -253,7 +287,11 @@ def test_get_user_orders_authenticated(app_client):
     assert "Your Orders" in res.text
     assert "RESERVED" in res.text
     assert "Club Classic Hoodie" in res.text
-    assert "<td>M</td>" in res.text
+    # Assert the visible cell value, not the HTML formatter's whitespace.
+    from bs4 import BeautifulSoup
+
+    cells = BeautifulSoup(res.text, "html.parser").select("td")
+    assert "M" in [cell.get_text(strip=True) for cell in cells]
 
 
 def test_post_cancel_order_by_owner(app_client):
@@ -274,7 +312,9 @@ def test_post_cancel_order_by_owner(app_client):
     )
 
     conn = connect(get_db_path())
-    order_row = conn.execute("SELECT id, status FROM merch_orders WHERE user_id = 1;").fetchone()
+    order_row = conn.execute(
+        "SELECT id, status FROM merch_orders WHERE user_id = 1;"
+    ).fetchone()
     conn.close()
     assert order_row["status"] == "RESERVED"
 
@@ -288,7 +328,9 @@ def test_post_cancel_order_by_owner(app_client):
     assert res.headers["location"] == "/me/orders"
 
     conn = connect(get_db_path())
-    order_after = conn.execute("SELECT status FROM merch_orders WHERE id = ?;", (order_row["id"],)).fetchone()
+    order_after = conn.execute(
+        "SELECT status FROM merch_orders WHERE id = ?;", (order_row["id"],)
+    ).fetchone()
     conn.close()
     assert order_after["status"] == "CANCELLED"
 
@@ -310,7 +352,9 @@ def test_post_cancel_order_forbidden_for_other_user(app_client):
     )
 
     conn = connect(get_db_path())
-    order_row = conn.execute("SELECT id FROM merch_orders WHERE user_id = 1;").fetchone()
+    order_row = conn.execute(
+        "SELECT id FROM merch_orders WHERE user_id = 1;"
+    ).fetchone()
     conn.close()
 
     # User 2 logs in and attempts to cancel User 1's order
@@ -339,8 +383,12 @@ def test_post_order_pickup_staff_permission(app_client):
     )
 
     conn = connect(get_db_path())
-    order_row = conn.execute("SELECT id, payment_id FROM merch_orders WHERE user_id = 1;").fetchone()
-    p_row = conn.execute("SELECT * FROM payments WHERE id = ?;", (order_row["payment_id"],)).fetchone()
+    order_row = conn.execute(
+        "SELECT id, payment_id FROM merch_orders WHERE user_id = 1;"
+    ).fetchone()
+    p_row = conn.execute(
+        "SELECT * FROM payments WHERE id = ?;", (order_row["payment_id"],)
+    ).fetchone()
     payment_obj = Payment(
         id=p_row["id"],
         public_id=p_row["public_id"],
@@ -375,7 +423,10 @@ def test_post_order_pickup_staff_permission(app_client):
 
     # Verify order is marked PICKED_UP
     conn = connect(get_db_path())
-    o_after = conn.execute("SELECT status, picked_up_by FROM merch_orders WHERE id = ?;", (order_row["id"],)).fetchone()
+    o_after = conn.execute(
+        "SELECT status, picked_up_by FROM merch_orders WHERE id = ?;",
+        (order_row["id"],),
+    ).fetchone()
     conn.close()
     assert o_after["status"] == "PICKED_UP"
     assert o_after["picked_up_by"] == 3

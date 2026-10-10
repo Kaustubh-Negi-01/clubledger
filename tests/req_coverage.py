@@ -25,7 +25,9 @@ VALID_STATUSES = {"planned", "implemented", "deferred"}
 def get_current_git_commit() -> str:
     """Get current git commit hash."""
     try:
-        res = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True)
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+        )
         return res.stdout.strip()
     except Exception:
         return ""
@@ -33,7 +35,7 @@ def get_current_git_commit() -> str:
 
 def parse_requirements(md_path: Path = DEFAULT_REQ_PATH) -> List[str]:
     """Parse requirement IDs from docs/REQUIREMENTS.md table rows.
-    
+
     Rejects duplicate requirement rows.
     """
     if not md_path.exists():
@@ -41,7 +43,9 @@ def parse_requirements(md_path: Path = DEFAULT_REQ_PATH) -> List[str]:
 
     text = md_path.read_text(encoding="utf-8")
     table_rows = re.findall(r"^\|\s*([A-Za-z0-9_-]+)\s*\|", text, re.MULTILINE)
-    raw_ids = [m for m in table_rows if m not in ("ID", "#") and not m.startswith("---")]
+    raw_ids = [
+        m for m in table_rows if m not in ("ID", "#") and not m.startswith("---")
+    ]
 
     seen: Set[str] = set()
     duplicates: List[str] = []
@@ -54,14 +58,16 @@ def parse_requirements(md_path: Path = DEFAULT_REQ_PATH) -> List[str]:
             unique_ids.append(rid)
 
     if duplicates:
-        raise ValueError(f"Duplicate requirement row(s) found in {md_path}: {sorted(set(duplicates))}")
+        raise ValueError(
+            f"Duplicate requirement row(s) found in {md_path}: {sorted(set(duplicates))}"
+        )
 
     return unique_ids
 
 
 def load_req_status(status_path: Path = DEFAULT_STATUS_PATH) -> Dict[str, Any]:
     """Load tests/req_status.json mapping IDs to status.
-    
+
     Rejects unknown status keys.
     """
     if not status_path.exists():
@@ -79,7 +85,9 @@ def load_req_status(status_path: Path = DEFAULT_STATUS_PATH) -> Dict[str, Any]:
             raise ValueError(f"Invalid status specification for {rid}: {val}")
 
         if status not in VALID_STATUSES:
-            raise ValueError(f"Unknown status key '{status}' for {rid}. Must be one of {sorted(VALID_STATUSES)}.")
+            raise ValueError(
+                f"Unknown status key '{status}' for {rid}. Must be one of {sorted(VALID_STATUSES)}."
+            )
 
     return data
 
@@ -89,7 +97,7 @@ def load_test_results(
     expected_commit: str | None = None,
 ) -> Dict[str, Any]:
     """Load recorded test run outcomes produced by pytest plugin in tests/conftest.py.
-    
+
     Validates presence, exit status, and tested git revision matching.
     """
     if not results_path.exists():
@@ -106,11 +114,17 @@ def load_test_results(
         raise ValueError(f"Malformed results file {results_path}: missing exitstatus.")
 
     if exitstatus != 0:
-        raise RuntimeError(f"Pytest run finished with non-zero exit status ({exitstatus}).")
+        raise RuntimeError(
+            f"Pytest run finished with non-zero exit status ({exitstatus})."
+        )
 
     if expected_commit:
         recorded_commit = data.get("commit", "")
-        if recorded_commit and recorded_commit != "unknown" and recorded_commit != expected_commit:
+        if (
+            recorded_commit
+            and recorded_commit != "unknown"
+            and recorded_commit != expected_commit
+        ):
             raise ValueError(
                 f"Stale test results detected! Results file tested commit '{recorded_commit}', "
                 f"but current HEAD is '{expected_commit}'."
@@ -174,7 +188,9 @@ def check_coverage(
                 continue
 
             if m_kind not in ("pos", "neg"):
-                malformed_markers.append(f"{nodeid} (invalid kind '{m_kind}' for {m_id})")
+                malformed_markers.append(
+                    f"{nodeid} (invalid kind '{m_kind}' for {m_id})"
+                )
                 continue
 
             # Genuine positive/negative passing evidence:
@@ -212,7 +228,9 @@ def check_coverage(
             status = raw_val
             reason = ""
         else:
-            errors.append(f"Invalid status format for {rid} in {status_path}: {raw_val}")
+            errors.append(
+                f"Invalid status format for {rid} in {status_path}: {raw_val}"
+            )
             continue
 
         if status == "implemented":
@@ -228,7 +246,9 @@ def check_coverage(
         elif status == "deferred":
             deferred_count += 1
             if not reason:
-                errors.append(f"Requirement {rid} is marked 'deferred' but lacks a recorded reason.")
+                errors.append(
+                    f"Requirement {rid} is marked 'deferred' but lacks a recorded reason."
+                )
 
         elif status == "planned":
             planned_count += 1
@@ -236,33 +256,45 @@ def check_coverage(
             # Passing partial tests do not force requirement to implemented or block progress mode.
 
         else:
-            errors.append(f"Unknown status '{status}' for requirement {rid} in {status_path}")
+            errors.append(
+                f"Unknown status '{status}' for requirement {rid} in {status_path}"
+            )
 
     # Mode-specific evaluations
     if mode == "progress":
-        print(f"Requirements coverage: implemented {implemented_count} / {total_scope} (deferred: {deferred_count}, planned: {planned_count})")
+        print(
+            f"Requirements coverage: implemented {implemented_count} / {total_scope} (deferred: {deferred_count}, planned: {planned_count})"
+        )
         if errors:
             print(f"FAILED (mode=progress) with {len(errors)} error(s):")
             for e in errors:
                 print(f"  - {e}")
             return 1
-        print("OK: Progress check passed. Unimplemented requirements do not block early CI.")
+        print(
+            "OK: Progress check passed. Unimplemented requirements do not block early CI."
+        )
         return 0
 
     elif mode == "final":
-        print(f"Final requirement coverage check: implemented {implemented_count} / {total_scope} (deferred: {deferred_count})")
+        print(
+            f"Final requirement coverage check: implemented {implemented_count} / {total_scope} (deferred: {deferred_count})"
+        )
         for rid in valid_ids:
             raw_val = status_data.get(rid, "")
             st = raw_val.get("status") if isinstance(raw_val, dict) else raw_val
             if st not in ("implemented", "deferred"):
-                errors.append(f"Requirement {rid} is '{st}'; must be 'implemented' or 'deferred' for release gate.")
+                errors.append(
+                    f"Requirement {rid} is '{st}'; must be 'implemented' or 'deferred' for release gate."
+                )
 
         if errors:
             print(f"FAILED (mode=final) with {len(errors)} error(s):")
             for e in errors:
                 print(f"  - {e}")
             return 1
-        print("OK: Final check passed. All accepted requirements are implemented or justified deferred.")
+        print(
+            "OK: Final check passed. All accepted requirements are implemented or justified deferred."
+        )
         return 0
 
     else:
@@ -271,7 +303,9 @@ def check_coverage(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="ClubLedger requirements coverage checker.")
+    parser = argparse.ArgumentParser(
+        description="ClubLedger requirements coverage checker."
+    )
     parser.add_argument(
         "--mode",
         choices=["progress", "final"],

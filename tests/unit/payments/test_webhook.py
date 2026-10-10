@@ -42,7 +42,9 @@ def test_parse_signature_header_invalid():
 def test_verify_webhook_stale_timestamp():
     secret = "test_secret_123"
     clock_iso = clock.now()
-    clock_dt = datetime.fromisoformat(clock_iso.replace("Z", "+00:00")).astimezone(timezone.utc)
+    clock_dt = datetime.fromisoformat(clock_iso.replace("Z", "+00:00")).astimezone(
+        timezone.utc
+    )
     t_stale = int(clock_dt.timestamp()) - 301
 
     payload = {
@@ -54,7 +56,9 @@ def test_verify_webhook_stale_timestamp():
         "currency": "INR",
     }
     raw_body = json.dumps(payload).encode("utf-8")
-    sig = hmac.new(secret.encode("utf-8"), f"{t_stale}.".encode("utf-8") + raw_body, hashlib.sha256).hexdigest()
+    sig = hmac.new(
+        secret.encode("utf-8"), f"{t_stale}.".encode("utf-8") + raw_body, hashlib.sha256
+    ).hexdigest()
     header = f"t={t_stale},v1={sig}"
 
     with pytest.raises(DomainError) as exc:
@@ -66,11 +70,15 @@ def test_verify_webhook_stale_timestamp():
 def test_verify_webhook_oversize_body():
     secret = "test_secret_123"
     clock_iso = clock.now()
-    clock_dt = datetime.fromisoformat(clock_iso.replace("Z", "+00:00")).astimezone(timezone.utc)
+    clock_dt = datetime.fromisoformat(clock_iso.replace("Z", "+00:00")).astimezone(
+        timezone.utc
+    )
     t = int(clock_dt.timestamp())
 
     large_body = b"x" * 4097
-    sig = hmac.new(secret.encode("utf-8"), f"{t}.".encode("utf-8") + large_body, hashlib.sha256).hexdigest()
+    sig = hmac.new(
+        secret.encode("utf-8"), f"{t}.".encode("utf-8") + large_body, hashlib.sha256
+    ).hexdigest()
     header = f"t={t},v1={sig}"
 
     with pytest.raises(DomainError) as exc:
@@ -82,7 +90,9 @@ def test_verify_webhook_oversize_body():
 def test_verify_webhook_bad_signature():
     secret = "test_secret_123"
     clock_iso = clock.now()
-    clock_dt = datetime.fromisoformat(clock_iso.replace("Z", "+00:00")).astimezone(timezone.utc)
+    clock_dt = datetime.fromisoformat(clock_iso.replace("Z", "+00:00")).astimezone(
+        timezone.utc
+    )
     t = int(clock_dt.timestamp())
 
     payload = {
@@ -105,7 +115,9 @@ def test_verify_webhook_bad_signature():
 def test_verify_webhook_schema_validation():
     secret = "test_secret_123"
     clock_iso = clock.now()
-    clock_dt = datetime.fromisoformat(clock_iso.replace("Z", "+00:00")).astimezone(timezone.utc)
+    clock_dt = datetime.fromisoformat(clock_iso.replace("Z", "+00:00")).astimezone(
+        timezone.utc
+    )
     t = int(clock_dt.timestamp())
 
     # Invalid currency
@@ -118,7 +130,9 @@ def test_verify_webhook_schema_validation():
         "currency": "USD",  # Must be INR
     }
     raw_body = json.dumps(payload).encode("utf-8")
-    sig = hmac.new(secret.encode("utf-8"), f"{t}.".encode("utf-8") + raw_body, hashlib.sha256).hexdigest()
+    sig = hmac.new(
+        secret.encode("utf-8"), f"{t}.".encode("utf-8") + raw_body, hashlib.sha256
+    ).hexdigest()
     header = f"t={t},v1={sig}"
 
     with pytest.raises(DomainError) as exc:
@@ -130,7 +144,9 @@ def test_verify_webhook_schema_validation():
 def test_verify_webhook_rate_limiting():
     secret = "test_secret_123"
     clock_iso = clock.now()
-    clock_dt = datetime.fromisoformat(clock_iso.replace("Z", "+00:00")).astimezone(timezone.utc)
+    clock_dt = datetime.fromisoformat(clock_iso.replace("Z", "+00:00")).astimezone(
+        timezone.utc
+    )
     t = int(clock_dt.timestamp())
 
     payload = {
@@ -142,7 +158,9 @@ def test_verify_webhook_rate_limiting():
         "currency": "INR",
     }
     raw_body = json.dumps(payload).encode("utf-8")
-    sig = hmac.new(secret.encode("utf-8"), f"{t}.".encode("utf-8") + raw_body, hashlib.sha256).hexdigest()
+    sig = hmac.new(
+        secret.encode("utf-8"), f"{t}.".encode("utf-8") + raw_body, hashlib.sha256
+    ).hexdigest()
     header = f"t={t},v1={sig}"
 
     client_ip = "192.168.1.50"
@@ -159,7 +177,9 @@ def test_verify_webhook_rate_limiting():
 def test_verify_webhook_valid_success():
     secret = "test_secret_123"
     clock_iso = clock.now()
-    clock_dt = datetime.fromisoformat(clock_iso.replace("Z", "+00:00")).astimezone(timezone.utc)
+    clock_dt = datetime.fromisoformat(clock_iso.replace("Z", "+00:00")).astimezone(
+        timezone.utc
+    )
     t = int(clock_dt.timestamp())
 
     payload = {
@@ -171,7 +191,9 @@ def test_verify_webhook_valid_success():
         "currency": "INR",
     }
     raw_body = json.dumps(payload).encode("utf-8")
-    sig = hmac.new(secret.encode("utf-8"), f"{t}.".encode("utf-8") + raw_body, hashlib.sha256).hexdigest()
+    sig = hmac.new(
+        secret.encode("utf-8"), f"{t}.".encode("utf-8") + raw_body, hashlib.sha256
+    ).hexdigest()
     header = f"t={t},v1={sig}"
 
     parsed = verify_webhook_request(raw_body, header, "127.0.0.1", secret)

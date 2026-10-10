@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{# Board: presentation only. Values are supplied by the backend; forms submit to API routes. #}
+{% block title %}
+    {{ fundraiser.title }}
+    · ClubLedger
+{% endblock %}
+{% block header_title %}
+    {{ fundraiser.title }}
+{% endblock %}
+{% block content %}
+    <p class="lead">
+        Goal ₹{{ '%.2f'|format((fundraiser.goal_paise or 0)/100) }}
+        · Approved spending ₹{{ '%.2f'|format(fundraiser.total_spend_paise/100) }}
+        ·
+        {{ board.overdue_count }}
+        overdue tasks
+    </p>
+    {% if "tasks.manage" in request.state.ui.permissions %}
+        <details class="panel modal-details">
+            <summary>
+                Assign a task
+            </summary>
+            <div>
+                <form action="/fundraisers/{{ fundraiser.id }}/tasks" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.ui.csrf }}">
+                    <div class="form-grid">
+                        <div>
+                            <label for="title">
+                                Task title
+                            </label>
+                            <input id="title" name="title" required>
+                        </div>
+                        <div>
+                            <label for="owner">
+                                Owner
+                            </label>
+                            <select id="owner" name="owner_user_id" required>
+                                {% for u in users %}
+                                    <option value="{{ u.id }}">
+                                        {{ u.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="due">
+                                Deadline (UTC)
+                            </label>
+                            <input id="due" type="datetime-local" name="due_at" required>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button>
+                            Assign task
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </details>
+    {% endif %}
+    <div class="kanban">
+        {% for status,label in [('TODO','To do'),('DOING','In progress'),('BLOCKED','Blocked'),('DONE','Done')] %}
+            <section class="kanban-col">
+                <h2>
+                    {{ label }}
+                    <span class="pill">
+                        {{ board.counts[status] }}
+                    </span>
+                </h2>
+                {% for t in board.tasks if t.status==status %}
+                    <article class="task-card">
+                        <h3>
+                            {{ t.title }}
+                        </h3>
+                        <p class="muted">
+                            {{ t.owner_name or 'Unassigned' }}
+                            <br>
+                            {{ t.due_at or 'No deadline' }}
+                        </p>
+                        {% if t.is_overdue %}
+                            <span class="badge badge-danger">
+                                Overdue
+                            </span>
+                        {% endif %}
+                        {% if t.owner_user_id==request.state.ui.user.id or "tasks.manage" in request.state.ui.permissions %}
+                            <form action="/tasks/{{ t.id }}/status" method="post" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ request.state.ui.csrf }}">
+                                <label for="status-{{ t.id }}">
+                                    Move task
+                                </label>
+                                <select id="status-{{ t.id }}" name="status">
+                                    {% for s in ['TODO','DOING','BLOCKED','DONE'] %}
+                                        <option {% if s==status %}selected{% endif %}>
+                                            {{ s }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <button class="secondary">
+                                    Update
+                                </button>
+                            </form>
+                        {% endif %}
+                    </article>
+                {% else %}
+                    <p class="empty">
+                        No tasks here.
+                    </p>
+                {% endfor %}
+            </section>
+        {% endfor %}
+    </div>
+{% endblock %}

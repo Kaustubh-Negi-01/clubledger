@@ -41,7 +41,12 @@ def setup_routes_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
     # Create payment for user 1
     p = create_payment(
-        conn, user_id=u1_id, purpose="DUES", ref_table="memberships", ref_id=1, amount_paise=25000
+        conn,
+        user_id=u1_id,
+        purpose="DUES",
+        ref_table="memberships",
+        ref_id=1,
+        amount_paise=25000,
     )
 
     conn.commit()
@@ -80,7 +85,9 @@ def test_get_pay_route_auth_and_ownership(setup_routes_db):
 
     # Check status changed from CREATED to PENDING
     conn = connect(db_path)
-    status = conn.execute("SELECT status FROM payments WHERE public_id = ?;", (public_id,)).fetchone()["status"]
+    status = conn.execute(
+        "SELECT status FROM payments WHERE public_id = ?;", (public_id,)
+    ).fetchone()["status"]
     conn.close()
     assert status == "PENDING"
 
@@ -116,7 +123,9 @@ def test_post_pay_outcome_simulator_flow(setup_routes_db):
 
     # Payment status in DB is SUCCEEDED
     conn = connect(db_path)
-    p_status = conn.execute("SELECT status FROM payments WHERE public_id = ?;", (public_id,)).fetchone()["status"]
+    p_status = conn.execute(
+        "SELECT status FROM payments WHERE public_id = ?;", (public_id,)
+    ).fetchone()["status"]
     conn.close()
     assert p_status == "SUCCEEDED"
 
@@ -141,7 +150,9 @@ def test_webhook_payment_endpoint(setup_routes_db):
     bad_sig_resp = client.post(
         "/webhooks/payments",
         content=raw_body,
-        headers={"X-Signature": "t=1,v1=0000000000000000000000000000000000000000000000000000000000000000"},
+        headers={
+            "X-Signature": "t=1,v1=0000000000000000000000000000000000000000000000000000000000000000"
+        },
     )
     assert bad_sig_resp.status_code == 400
     assert bad_sig_resp.json()["code"] == "BAD_SIGNATURE"
@@ -164,7 +175,9 @@ def test_admin_payments_permissions(setup_routes_db):
     with unit_of_work(db_path) as conn:
         token1, csrf1 = create_session(conn, u1_id)
         # Grant admin role to user 2
-        role_id = conn.execute("SELECT id FROM roles WHERE code = 'admin';").fetchone()["id"]
+        role_id = conn.execute("SELECT id FROM roles WHERE code = 'admin';").fetchone()[
+            "id"
+        ]
         conn.execute(
             "INSERT INTO user_roles (user_id, role_id, granted_at, created_at) "
             "VALUES (?, ?, '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z');",
@@ -174,7 +187,9 @@ def test_admin_payments_permissions(setup_routes_db):
 
     # User 1 (plain member) -> 403 FORBIDDEN
     client.cookies.set(COOKIE_SESSION, token1)
-    forbidden_resp = client.get("/admin/payments", headers={"Accept": "application/json"})
+    forbidden_resp = client.get(
+        "/admin/payments", headers={"Accept": "application/json"}
+    )
     assert forbidden_resp.status_code == 403
     assert forbidden_resp.json()["code"] == "FORBIDDEN"
 
@@ -191,7 +206,9 @@ def test_admin_payments_html_view_and_actions(setup_routes_db):
     client = TestClient(app)
 
     with unit_of_work(db_path) as conn:
-        role_id = conn.execute("SELECT id FROM roles WHERE code = 'admin';").fetchone()["id"]
+        role_id = conn.execute("SELECT id FROM roles WHERE code = 'admin';").fetchone()[
+            "id"
+        ]
         conn.execute(
             "INSERT INTO user_roles (user_id, role_id, granted_at, created_at) "
             "VALUES (?, ?, '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z');",
@@ -204,7 +221,9 @@ def test_admin_payments_html_view_and_actions(setup_routes_db):
             "UPDATE payments SET status = 'SUCCEEDED', fulfillment = 'UNFULFILLED' WHERE public_id = ?;",
             (public_id,),
         )
-        p_row = conn.execute("SELECT id FROM payments WHERE public_id = ?;", (public_id,)).fetchone()
+        p_row = conn.execute(
+            "SELECT id FROM payments WHERE public_id = ?;", (public_id,)
+        ).fetchone()
         pid = p_row["id"]
 
         # Insert unapplied receipt event

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{# Finance index: presentation only. Values are supplied by the backend; forms submit to API routes. #}
+{% block title %}
+    Financial ledger · ClubLedger
+{% endblock %}
+{% block header_title %}
+    Financial ledger
+{% endblock %}
+{% block content %}
+    <p class="lead">
+        Cumulative cash and obligations. Income and expenses show movements for the selected financial period.
+    </p>
+    <div class="actions finance-index-layout-1">
+        <a class="button secondary" href="/finance/integrity">
+            Run integrity checks
+        </a>
+        <form method="post" action="/admin/settle">
+            <input type="hidden" name="csrf_token" value="{{ request.state.ui.csrf }}">
+            <button class="secondary">
+                Settle eligible receipts (T+1)
+            </button>
+        </form>
+    </div>
+    <form class="inline-form finance-index-layout-2"
+    method="get"
+    action="/finance">
+        <label for="financial-period">
+            Financial period
+        </label>
+        <select id="financial-period" name="period_id">
+            {% for t in terms %}
+                <option value="{{ t.id }}" {% if t.id==period_id %}selected{% endif %}>
+                    {{ t.label }}
+                    ·
+                    {{ t.status }}
+                </option>
+            {% endfor %}
+        </select>
+        <button class="secondary">
+            View period
+        </button>
+    </form>
+    <div class="metrics">
+        {% for label,value in [('Cash on Hand (1000)',cash_summary.cash_on_hand),('Payment Clearing (1100)',cash_summary.in_clearing),('Unfulfilled Obligations (2000)',cash_summary.unfulfilled_obligations),('Reimbursements Payable (2100)',cash_summary.reimbursements_payable)] %}
+            <div class="metric">
+                <small>
+                    {{ label }}
+                </small>
+                <strong>
+                    ₹{{ '%.2f'|format(value/100) }}
+                </strong>
+            </div>
+        {% endfor %}
+    </div>
+    <section class="panel">
+        <h2>
+            Accounts breakdown
+        </h2>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>
+                            Account
+                        </th>
+                        <th>
+                            Type
+                        </th>
+                        <th>
+                            Debit
+                        </th>
+                        <th>
+                            Credit
+                        </th>
+                        <th>
+                            Net balance
+                        </th>
+                        <th>
+                            Details
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in breakdown.items %}
+                        <tr>
+                            <td>
+                                <strong>
+                                    {{ item.account_code }}
+                                </strong>
+                                ·
+                                {{ item.account_name }}
+                            </td>
+                            <td>
+                                {{ item.type }}
+                            </td>
+                            <td class="money">
+                                ₹{{ '%.2f'|format(item.debit_paise/100) }}
+                            </td>
+                            <td class="money">
+                                ₹{{ '%.2f'|format(item.credit_paise/100) }}
+                            </td>
+                            <td class="money">
+                                ₹{{ '%.2f'|format(item.net_paise/100) }}
+                            </td>
+                            <td>
+                                <a href="/finance/accounts/{{ item.account_code }}?period_id={{ period_id }}">
+                                    Drilldown
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

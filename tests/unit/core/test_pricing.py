@@ -146,7 +146,9 @@ def test_ticket_price_member_and_public(db_conn: sqlite3.Connection):
     db_conn.commit()
 
     # User 1 without active membership pays public price
-    price, tier = ticket_price(db_conn, event_id=1, user_id=1, at="2026-09-01T00:00:00Z")
+    price, tier = ticket_price(
+        db_conn, event_id=1, user_id=1, at="2026-09-01T00:00:00Z"
+    )
     assert price == 100000
     assert tier == "PUBLIC"
 
@@ -164,7 +166,9 @@ def test_ticket_price_member_and_public(db_conn: sqlite3.Connection):
     )
     db_conn.commit()
 
-    price, tier = ticket_price(db_conn, event_id=1, user_id=1, at="2026-09-01T00:00:00Z")
+    price, tier = ticket_price(
+        db_conn, event_id=1, user_id=1, at="2026-09-01T00:00:00Z"
+    )
     assert price == 75000
     assert tier == "MEMBER"
 
@@ -172,7 +176,9 @@ def test_ticket_price_member_and_public(db_conn: sqlite3.Connection):
     db_conn.execute("UPDATE memberships SET plan_id = 2 WHERE id = 1;")
     db_conn.commit()
 
-    price_vip, tier_vip = ticket_price(db_conn, event_id=1, user_id=1, at="2026-09-01T00:00:00Z")
+    price_vip, tier_vip = ticket_price(
+        db_conn, event_id=1, user_id=1, at="2026-09-01T00:00:00Z"
+    )
     assert price_vip == 60000
     assert tier_vip == "MEMBER"
 
@@ -181,7 +187,9 @@ def test_merch_price_member_and_public(db_conn: sqlite3.Connection):
     base_price = 50000  # 500 INR
 
     # Anonymous / non-member
-    price, tier = merch_price(db_conn, base_paise=base_price, user_id=999, at="2026-09-01T00:00:00Z")
+    price, tier = merch_price(
+        db_conn, base_paise=base_price, user_id=999, at="2026-09-01T00:00:00Z"
+    )
     assert price == 50000
     assert tier == "PUBLIC"
 
@@ -199,6 +207,8 @@ def test_merch_price_member_and_public(db_conn: sqlite3.Connection):
     )
     db_conn.commit()
 
-    price_mem, tier_mem = merch_price(db_conn, base_paise=base_price, user_id=1, at="2026-09-01T00:00:00Z")
+    price_mem, tier_mem = merch_price(
+        db_conn, base_paise=base_price, user_id=1, at="2026-09-01T00:00:00Z"
+    )
     assert price_mem == 45000
     assert tier_mem == "MEMBER"

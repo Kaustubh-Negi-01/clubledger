@@ -3,6 +3,7 @@
 Tests the early schema using an explicitly test-only subset [0001, 0006]
 on a temporary SQLite database using genuine A modules (CONTRACT §1, BUILD_ORDER §1).
 """
+
 from __future__ import annotations
 
 import os
@@ -72,7 +73,9 @@ def test_chart_of_accounts_seeded(temp_db_path):
 def test_direct_posted_insert_rejected(temp_db_path):
     """Direct insert of a POSTED entry aborts via trg_entry_insert_draft_only."""
     with unit_of_work(temp_db_path) as conn:
-        with pytest.raises(sqlite3.IntegrityError, match="Direct INSERT of POSTED entry is not allowed"):
+        with pytest.raises(
+            sqlite3.IntegrityError, match="Direct INSERT of POSTED entry is not allowed"
+        ):
             conn.execute(
                 """
                 INSERT INTO journal_entries (
@@ -127,12 +130,16 @@ def test_post_entry_balanced(temp_db_path):
         )
         assert entry_id > 0
 
-        cur = conn.execute("SELECT status, posted_at FROM journal_entries WHERE id = ?", (entry_id,))
+        cur = conn.execute(
+            "SELECT status, posted_at FROM journal_entries WHERE id = ?", (entry_id,)
+        )
         status, posted_at = cur.fetchone()
         assert status == "POSTED"
         assert posted_at is not None
 
-        cur = conn.execute("SELECT COUNT(*) FROM journal_lines WHERE entry_id = ?", (entry_id,))
+        cur = conn.execute(
+            "SELECT COUNT(*) FROM journal_lines WHERE entry_id = ?", (entry_id,)
+        )
         assert cur.fetchone()[0] == 2
 
 
@@ -173,10 +180,16 @@ def test_posted_entry_immutability(temp_db_path):
             ],
         )
 
-        with pytest.raises(sqlite3.IntegrityError, match="POSTED journal entries are immutable"):
-            conn.execute("UPDATE journal_entries SET memo = 'changed' WHERE id = ?", (entry_id,))
+        with pytest.raises(
+            sqlite3.IntegrityError, match="POSTED journal entries are immutable"
+        ):
+            conn.execute(
+                "UPDATE journal_entries SET memo = 'changed' WHERE id = ?", (entry_id,)
+            )
 
-        with pytest.raises(sqlite3.IntegrityError, match="POSTED journal entries cannot be deleted"):
+        with pytest.raises(
+            sqlite3.IntegrityError, match="POSTED journal entries cannot be deleted"
+        ):
             conn.execute("DELETE FROM journal_entries WHERE id = ?", (entry_id,))
 
 
@@ -217,11 +230,16 @@ def test_posted_lines_immutability_and_movement(temp_db_path):
         )
         draft_line_id = cur.lastrowid
 
-        cur = conn.execute("SELECT id FROM journal_lines WHERE entry_id = ?", (e_posted,))
+        cur = conn.execute(
+            "SELECT id FROM journal_lines WHERE entry_id = ?", (e_posted,)
+        )
         posted_line_id = cur.fetchone()[0]
 
         # 1. Attempt to insert line into posted entry
-        with pytest.raises(sqlite3.IntegrityError, match="Lines can only be inserted into DRAFT entries"):
+        with pytest.raises(
+            sqlite3.IntegrityError,
+            match="Lines can only be inserted into DRAFT entries",
+        ):
             conn.execute(
                 """
                 INSERT INTO journal_lines (entry_id, account_id, debit_paise, credit_paise, created_at)
@@ -231,20 +249,40 @@ def test_posted_lines_immutability_and_movement(temp_db_path):
             )
 
         # 2. Attempt to update line in posted entry
-        with pytest.raises(sqlite3.IntegrityError, match="entry_id cannot be changed|Cannot update lines of a POSTED entry"):
-            conn.execute("UPDATE journal_lines SET debit_paise = 20000 WHERE id = ?", (posted_line_id,))
+        with pytest.raises(
+            sqlite3.IntegrityError,
+            match="entry_id cannot be changed|Cannot update lines of a POSTED entry",
+        ):
+            conn.execute(
+                "UPDATE journal_lines SET debit_paise = 20000 WHERE id = ?",
+                (posted_line_id,),
+            )
 
         # 3. Attempt to delete line from posted entry
-        with pytest.raises(sqlite3.IntegrityError, match="Cannot delete lines from a POSTED entry"):
+        with pytest.raises(
+            sqlite3.IntegrityError, match="Cannot delete lines from a POSTED entry"
+        ):
             conn.execute("DELETE FROM journal_lines WHERE id = ?", (posted_line_id,))
 
         # 4. Attempt to move line from posted entry into draft entry
-        with pytest.raises(sqlite3.IntegrityError, match="entry_id cannot be changed|Cannot update lines of a POSTED entry"):
-            conn.execute("UPDATE journal_lines SET entry_id = ? WHERE id = ?", (e_draft, posted_line_id))
+        with pytest.raises(
+            sqlite3.IntegrityError,
+            match="entry_id cannot be changed|Cannot update lines of a POSTED entry",
+        ):
+            conn.execute(
+                "UPDATE journal_lines SET entry_id = ? WHERE id = ?",
+                (e_draft, posted_line_id),
+            )
 
         # 5. Attempt to move line from draft entry into posted entry
-        with pytest.raises(sqlite3.IntegrityError, match="entry_id cannot be changed|Cannot move lines into a POSTED entry"):
-            conn.execute("UPDATE journal_lines SET entry_id = ? WHERE id = ?", (e_posted, draft_line_id))
+        with pytest.raises(
+            sqlite3.IntegrityError,
+            match="entry_id cannot be changed|Cannot move lines into a POSTED entry",
+        ):
+            conn.execute(
+                "UPDATE journal_lines SET entry_id = ? WHERE id = ?",
+                (e_posted, draft_line_id),
+            )
 
 
 def test_adjusts_term_id_closed_term_enforced(temp_db_path):
@@ -259,7 +297,9 @@ def test_adjusts_term_id_closed_term_enforced(temp_db_path):
         )
 
         # Insert with OPEN adjusts_term_id (term 1 is OPEN) fails
-        with pytest.raises(sqlite3.IntegrityError, match="adjusts_term_id must reference a CLOSED term"):
+        with pytest.raises(
+            sqlite3.IntegrityError, match="adjusts_term_id must reference a CLOSED term"
+        ):
             conn.execute(
                 """
                 INSERT INTO journal_entries (
@@ -281,8 +321,13 @@ def test_adjusts_term_id_closed_term_enforced(temp_db_path):
         draft_id = cur.lastrowid
 
         # Updating draft adjusts_term_id to an OPEN term (term 1) fails
-        with pytest.raises(sqlite3.IntegrityError, match="adjusts_term_id must reference a CLOSED term"):
-            conn.execute("UPDATE journal_entries SET adjusts_term_id = 1 WHERE id = ?", (draft_id,))
+        with pytest.raises(
+            sqlite3.IntegrityError, match="adjusts_term_id must reference a CLOSED term"
+        ):
+            conn.execute(
+                "UPDATE journal_entries SET adjusts_term_id = 1 WHERE id = ?",
+                (draft_id,),
+            )
 
 
 def test_input_validation_and_idempotency_without_coercion(temp_db_path):
@@ -414,7 +459,9 @@ def test_injected_failure_rolls_back_outer_unit_of_work(temp_db_path):
     with unit_of_work(temp_db_path) as conn:
         cur = conn.execute("SELECT COUNT(*) FROM journal_entries WHERE source_id = 888")
         assert cur.fetchone()[0] == 0
-        cur = conn.execute("SELECT COUNT(*) FROM journal_lines WHERE debit_paise = 1000")
+        cur = conn.execute(
+            "SELECT COUNT(*) FROM journal_lines WHERE debit_paise = 1000"
+        )
         assert cur.fetchone()[0] == 0
 
 
@@ -564,12 +611,22 @@ def test_reverse_all_for_source(temp_db_path):
             ],
         )
 
-        reversed_ids = service.reverse_all_for_source(conn, "payment", 200, memo="Full refund")
+        reversed_ids = service.reverse_all_for_source(
+            conn, "payment", 200, memo="Full refund"
+        )
         assert len(reversed_ids) == 2
-        cur = conn.execute("SELECT reverses_entry_id FROM journal_entries WHERE id = ?", (reversed_ids[0],))
+        cur = conn.execute(
+            "SELECT reverses_entry_id FROM journal_entries WHERE id = ?",
+            (reversed_ids[0],),
+        )
         assert cur.fetchone()[0] == e2
-        cur = conn.execute("SELECT reverses_entry_id FROM journal_entries WHERE id = ?", (reversed_ids[1],))
+        cur = conn.execute(
+            "SELECT reverses_entry_id FROM journal_entries WHERE id = ?",
+            (reversed_ids[1],),
+        )
         assert cur.fetchone()[0] == e1
 
-        retried_ids = service.reverse_all_for_source(conn, "payment", 200, memo="Full refund retry")
+        retried_ids = service.reverse_all_for_source(
+            conn, "payment", 200, memo="Full refund retry"
+        )
         assert retried_ids == []

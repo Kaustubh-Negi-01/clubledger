@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{# Payments pay: presentation only. Values are supplied by the backend; forms submit to API routes. #}
+{% block title %}
+    Checkout · ClubLedger
+{% endblock %}
+{% block header_title %}
+    Checkout
+{% endblock %}
+{% block content %}
+    {% include "payments/result.html" %}
+    <div class="grid-2">
+        <section class="panel">
+            <span class="pill">
+                Simulated payment gateway
+            </span>
+            <h2 class="payments-pay-layout-1">
+                {{ payment.purpose.title() }}
+                payment
+            </h2>
+            <p class="muted">
+                No real cards, banks or external payment APIs are involved in this local demo.
+            </p>
+            <div class="row-item">
+                <span>
+                    Amount
+                </span>
+                <strong class="price">
+                    ₹{{ '%.2f'|format(payment.amount_paise/100) }}
+                </strong>
+            </div>
+            <div class="row-item">
+                <span>
+                    Status
+                </span>
+                <span class="pill">
+                    {{ payment.status }}
+                </span>
+            </div>
+            <div class="row-item">
+                <span>
+                    Reference
+                </span>
+                <code>
+                    {{ payment.public_id }}
+                </code>
+            </div>
+            {% if payment.status in ["CREATED","PENDING"] %}
+                <form method="post" action="/pay/{{ payment.public_id }}/outcome">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="actions">
+                        <button name="outcome" value="success">
+                            Simulate Payment Success
+                        </button>
+                        <button class="secondary" name="outcome" value="fail">
+                            Simulate Payment Failure
+                        </button>
+                    </div>
+                </form>
+            {% else %}
+                <p>
+                    This payment has already been completed with status:
+                    <strong>
+                        {{ payment.status }}
+                    </strong>
+                    .
+                </p>
+                <a class="button" href="/dashboard">
+                    Return to overview
+                </a>
+            {% endif %}
+        </section>
+        <section class="panel">
+            <h2>
+                What happens next
+            </h2>
+            <p>
+                Successful membership payments activate your membership. Ticket payments issue one ticket per seat. Merchandise payments reserve your items until staff pickup.
+            </p>
+            <p class="muted">
+                Reservations expire. A payment that arrives too late is recorded as an unfulfilled obligation for review, rather than silently issuing unavailable items.
+            </p>
+        </section>
+    </div>
+{% endblock %}

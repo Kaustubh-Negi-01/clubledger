@@ -63,24 +63,71 @@ def test_membership_plan_and_creation():
         conn.execute(
             "INSERT INTO terms (id, label, starts_at, ends_at, status, closed_at, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?);",
-            (1, "Fall 2026", "2026-08-01T00:00:00Z", None, "OPEN", None, "2026-08-01T00:00:00Z"),
+            (
+                1,
+                "Fall 2026",
+                "2026-08-01T00:00:00Z",
+                None,
+                "OPEN",
+                None,
+                "2026-08-01T00:00:00Z",
+            ),
         )
         conn.execute(
             "INSERT INTO payments (id, public_id, user_id, purpose, ref_table, ref_id, amount_paise, currency, status, fulfillment, term_id, succeeded_at, settled_at, refunded_at, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-            (1, "pay_1", 1, "DUES", "memberships", 1, 1500, "INR", "SUCCEEDED", "FULFILLED", 1, "2026-10-10T00:00:00Z", None, None, "2026-10-10T00:00:00Z"),
+            (
+                1,
+                "pay_1",
+                1,
+                "DUES",
+                "memberships",
+                1,
+                1500,
+                "INR",
+                "SUCCEEDED",
+                "FULFILLED",
+                1,
+                "2026-10-10T00:00:00Z",
+                None,
+                None,
+                "2026-10-10T00:00:00Z",
+            ),
         )
         conn.execute(
             "INSERT INTO membership_plans (id, code, name, dues_paise, ticket_discount_bps, merch_discount_bps, is_active, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
-            (1, "STANDARD", "Standard Plan", 1500, 2000, 1000, 1, "2026-10-10T00:00:00Z"),
+            (
+                1,
+                "STANDARD",
+                "Standard Plan",
+                1500,
+                2000,
+                1000,
+                1,
+                "2026-10-10T00:00:00Z",
+            ),
         )
 
         # Valid PENDING membership without member_code/qr_token
         conn.execute(
             "INSERT INTO memberships (id, user_id, plan_id, membership_year, status, starts_at, expires_at, member_code, qr_token, payment_id, verified_by, verified_at, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-            (1, 1, 1, "2026-27", "PENDING", "2026-08-01T00:00:00Z", "2027-08-01T00:00:00Z", None, None, None, None, None, "2026-10-10T00:00:00Z"),
+            (
+                1,
+                1,
+                1,
+                "2026-27",
+                "PENDING",
+                "2026-08-01T00:00:00Z",
+                "2027-08-01T00:00:00Z",
+                None,
+                None,
+                None,
+                None,
+                None,
+                "2026-10-10T00:00:00Z",
+            ),
         )
 
         row = conn.execute(
@@ -103,7 +150,16 @@ def test_membership_active_requires_code_and_token():
         conn.execute(
             "INSERT INTO membership_plans (id, code, name, dues_paise, ticket_discount_bps, merch_discount_bps, is_active, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
-            (1, "STANDARD", "Standard Plan", 1500, 2000, 1000, 1, "2026-10-10T00:00:00Z"),
+            (
+                1,
+                "STANDARD",
+                "Standard Plan",
+                1500,
+                2000,
+                1000,
+                1,
+                "2026-10-10T00:00:00Z",
+            ),
         )
 
         # ACTIVE with NULL member_code / qr_token must fail CHECK constraint
@@ -111,7 +167,21 @@ def test_membership_active_requires_code_and_token():
             conn.execute(
                 "INSERT INTO memberships (id, user_id, plan_id, membership_year, status, starts_at, expires_at, member_code, qr_token, payment_id, verified_by, verified_at, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-                (1, 1, 1, "2026-27", "ACTIVE", "2026-08-01T00:00:00Z", "2027-08-01T00:00:00Z", None, None, None, None, None, "2026-10-10T00:00:00Z"),
+                (
+                    1,
+                    1,
+                    1,
+                    "2026-27",
+                    "ACTIVE",
+                    "2026-08-01T00:00:00Z",
+                    "2027-08-01T00:00:00Z",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    "2026-10-10T00:00:00Z",
+                ),
             )
     finally:
         conn.close()
@@ -128,7 +198,16 @@ def test_membership_expiry_must_exceed_starts_at():
         conn.execute(
             "INSERT INTO membership_plans (id, code, name, dues_paise, ticket_discount_bps, merch_discount_bps, is_active, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
-            (1, "STANDARD", "Standard Plan", 1500, 2000, 1000, 1, "2026-10-10T00:00:00Z"),
+            (
+                1,
+                "STANDARD",
+                "Standard Plan",
+                1500,
+                2000,
+                1000,
+                1,
+                "2026-10-10T00:00:00Z",
+            ),
         )
 
         # expires_at <= starts_at must fail CHECK (expires_at > starts_at)
@@ -136,7 +215,21 @@ def test_membership_expiry_must_exceed_starts_at():
             conn.execute(
                 "INSERT INTO memberships (id, user_id, plan_id, membership_year, status, starts_at, expires_at, member_code, qr_token, payment_id, verified_by, verified_at, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-                (1, 1, 1, "2026-27", "PENDING", "2027-08-01T00:00:00Z", "2026-08-01T00:00:00Z", None, None, None, None, None, "2026-10-10T00:00:00Z"),
+                (
+                    1,
+                    1,
+                    1,
+                    "2026-27",
+                    "PENDING",
+                    "2027-08-01T00:00:00Z",
+                    "2026-08-01T00:00:00Z",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    "2026-10-10T00:00:00Z",
+                ),
             )
     finally:
         conn.close()
@@ -153,13 +246,36 @@ def test_membership_unique_live_per_academic_year():
         conn.execute(
             "INSERT INTO membership_plans (id, code, name, dues_paise, ticket_discount_bps, merch_discount_bps, is_active, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
-            (1, "STANDARD", "Standard Plan", 1500, 2000, 1000, 1, "2026-10-10T00:00:00Z"),
+            (
+                1,
+                "STANDARD",
+                "Standard Plan",
+                1500,
+                2000,
+                1000,
+                1,
+                "2026-10-10T00:00:00Z",
+            ),
         )
 
         conn.execute(
             "INSERT INTO memberships (id, user_id, plan_id, membership_year, status, starts_at, expires_at, member_code, qr_token, payment_id, verified_by, verified_at, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-            (1, 1, 1, "2026-27", "ACTIVE", "2026-08-01T00:00:00Z", "2027-08-01T00:00:00Z", "M001", "QR001", None, None, None, "2026-10-10T00:00:00Z"),
+            (
+                1,
+                1,
+                1,
+                "2026-27",
+                "ACTIVE",
+                "2026-08-01T00:00:00Z",
+                "2027-08-01T00:00:00Z",
+                "M001",
+                "QR001",
+                None,
+                None,
+                None,
+                "2026-10-10T00:00:00Z",
+            ),
         )
 
         # Second live (PENDING or ACTIVE) membership in same year for same user must violate UNIQUE index
@@ -167,7 +283,21 @@ def test_membership_unique_live_per_academic_year():
             conn.execute(
                 "INSERT INTO memberships (id, user_id, plan_id, membership_year, status, starts_at, expires_at, member_code, qr_token, payment_id, verified_by, verified_at, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-                (2, 1, 1, "2026-27", "PENDING", "2026-08-01T00:00:00Z", "2027-08-01T00:00:00Z", None, None, None, None, None, "2026-10-10T00:00:00Z"),
+                (
+                    2,
+                    1,
+                    1,
+                    "2026-27",
+                    "PENDING",
+                    "2026-08-01T00:00:00Z",
+                    "2027-08-01T00:00:00Z",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    "2026-10-10T00:00:00Z",
+                ),
             )
     finally:
         conn.close()

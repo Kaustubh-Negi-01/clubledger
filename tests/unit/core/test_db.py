@@ -72,5 +72,8 @@ def test_unit_of_work_prevents_nested_transactions(tmp_path: Path) -> None:
     with unit_of_work(str(db_file)) as conn:
         assert conn.in_transaction is True
         # Attempting nested BEGIN inside unit_of_work must fail
-        with pytest.raises(sqlite3.OperationalError, match="cannot start a transaction within a transaction"):
+        with pytest.raises(
+            sqlite3.OperationalError,
+            match="cannot start a transaction within a transaction",
+        ):
             conn.execute("BEGIN IMMEDIATE")

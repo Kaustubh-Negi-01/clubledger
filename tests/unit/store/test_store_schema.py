@@ -138,7 +138,18 @@ def test_store_order_item_unique_and_qty():
         conn.execute(
             "INSERT INTO merch_orders (id, user_id, status, expires_at, total_paise, price_tier, payment_id, picked_up_at, picked_up_by, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-            (1, 1, "RESERVED", "2026-10-10T02:00:00Z", 3000, "PUBLIC", None, None, None, "2026-10-10T00:00:00Z"),
+            (
+                1,
+                1,
+                "RESERVED",
+                "2026-10-10T02:00:00Z",
+                3000,
+                "PUBLIC",
+                None,
+                None,
+                None,
+                "2026-10-10T00:00:00Z",
+            ),
         )
 
         # Positive item insertion

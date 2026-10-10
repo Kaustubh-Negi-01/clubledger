@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{# Finance account: presentation only. Values are supplied by the backend; forms submit to API routes. #}
+{% block title %}
+    {{ drilldown.title }}
+    · ClubLedger
+{% endblock %}
+{% block header_title %}
+    {{ drilldown.title }}
+{% endblock %}
+{% block content %}
+    <p>
+        <a href="/finance">
+            ← Back to Finance
+        </a>
+    </p>
+    <p>
+        <strong>
+            Total Net Paise:
+        </strong>
+        ₹{{ drilldown.total_paise / 100 }}
+    </p>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>
+                        Entry ID
+                    </th>
+                    <th>
+                        Entry Date
+                    </th>
+                    <th>
+                        Source
+                    </th>
+                    <th>
+                        Event
+                    </th>
+                    <th>
+                        Memo
+                    </th>
+                    <th>
+                        Debit (₹)
+                    </th>
+                    <th>
+                        Credit (₹)
+                    </th>
+                    <th>
+                        Net (₹)
+                    </th>
+                    <th>
+                        Action
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in drilldown.items %}
+                    <tr>
+                        <td>
+                            {{ item.entry_id }}
+                        </td>
+                        <td>
+                            {{ item.entry_date }}
+                        </td>
+                        <td>
+                            {{ item.source_type }}
+                            :
+                            {{ item.source_id }}
+                        </td>
+                        <td>
+                            {{ item.source_event }}
+                        </td>
+                        <td>
+                            {{ item.memo }}
+                        </td>
+                        <td>
+                            {{ item.debit_paise / 100 }}
+                        </td>
+                        <td>
+                            {{ item.credit_paise / 100 }}
+                        </td>
+                        <td>
+                            {{ item.net_paise / 100 }}
+                        </td>
+                        <td>
+                            <a href="/finance/entries/{{ item.entry_id }}">
+                                View Entry
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

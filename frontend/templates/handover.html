@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{# Handover: presentation only. Values are supplied by the backend; forms submit to API routes. #}
+{% block title %}
+    Officer handover · ClubLedger
+{% endblock %}
+{% block header_title %}
+    Officer handover
+{% endblock %}
+{% block content %}
+    <p class="lead">
+        Transfer officer roles after closing a period. Outgoing sessions are revoked immediately; the financial snapshot stays unchanged.
+    </p>
+    {% if terms %}
+        <section class="panel">
+            <h2>
+                Record a handover
+            </h2>
+            <form action="/admin/handover"
+            method="post"
+            data-confirm="Transfer the selected roles and revoke the outgoing officer’s sessions?">
+                <input type="hidden" name="csrf_token" value="{{ request.state.ui.csrf }}">
+                <div class="form-grid">
+                    <div>
+                        <label for="term">
+                            Closed period
+                        </label>
+                        <select id="term" name="term_id">
+                            {% for t in terms %}
+                                <option value="{{ t.id }}">
+                                    {{ t.label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="outgoing">
+                            Outgoing officer
+                        </label>
+                        <select id="outgoing" name="from_user_id">
+                            {% for u in users %}
+                                <option value="{{ u.id }}">
+                                    {{ u.name }}
+                                    ·
+                                    {{ u.email }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="incoming">
+                            Incoming officer
+                        </label>
+                        <select id="incoming" name="to_user_id">
+                            {% for u in users %}
+                                <option value="{{ u.id }}">
+                                    {{ u.name }}
+                                    ·
+                                    {{ u.email }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <fieldset>
+                        <legend>
+                            Roles to transfer
+                        </legend>
+                        {% for r in roles %}
+                            <label>
+                                <input type="checkbox" name="role_codes" value="{{ r.code }}">
+                                {{ r.code }}
+                            </label>
+                        {% endfor %}
+                    </fieldset>
+                    <div class="full">
+                        <label for="notes">
+                            Handover notes
+                        </label>
+                        <textarea id="notes" name="notes"></textarea>
+                    </div>
+                </div>
+                <button>
+                    Complete handover
+                </button>
+            </form>
+        </section>
+    {% else %}
+        <section class="panel">
+            <p class="empty">
+                Close a semester before handing over officers.
+            </p>
+            <a class="button" href="/admin/close">
+                Open semester close
+            </a>
+        </section>
+    {% endif %}
+    <section class="panel">
+        <h2>
+            Handover history
+        </h2>
+        {% for r in records %}
+            <div class="row-item">
+                <div>
+                    <strong>
+                        {{ r.outgoing }}
+                        →
+                        {{ r.incoming }}
+                    </strong>
+                    <small>
+                        {{ r.completed_at }}
+                        ·
+                        {{ r.role_changes_json }}
+                    </small>
+                    <p>
+                        {{ r.notes }}
+                    </p>
+                </div>
+            </div>
+        {% else %}
+            <p class="empty">
+                No handovers have been recorded.
+            </p>
+        {% endfor %}
+    </section>
+{% endblock %}

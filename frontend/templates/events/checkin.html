@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{# Events checkin: presentation only. Values are supplied by the backend; forms submit to API routes. #}
+{% block title %}
+    Check-In:
+    {{ event.title }}
+    - ClubLedger
+{% endblock %}
+{% block header_title %}
+    Staff Door Check-In
+{% endblock %}
+{% block content %}
+    <section aria-labelledby="checkin-heading">
+        <h2 id="checkin-heading">
+            Check-In:
+            {{ event.title }}
+        </h2>
+        <p>
+            <strong>
+                Venue:
+            </strong>
+            {{ event.venue }}
+            •
+            <strong>
+                Time:
+            </strong>
+            <time datetime="{{ event.starts_at }}">
+                {{ event.starts_at }}
+            </time>
+        </p>
+        {% if result %}
+            <div class="checkin-result events-checkin-layout-1"
+            role="alert"
+            aria-live="assertive">
+                <h3 class="events-checkin-layout-2">
+                    {% if result.status == "OK" %}
+                        ✓ Admission Granted
+                    {% elif result.status == "ALREADY_USED" %}
+                        ! Ticket Already Used
+                    {% else %}
+                        ✗ Admission Rejected
+                    {% endif %}
+                </h3>
+                <p>
+                    <strong>
+                        Status:
+                    </strong>
+                    {{ result.status }}
+                </p>
+                <p>
+                    <strong>
+                        Details:
+                    </strong>
+                    {{ result.message }}
+                </p>
+                {% if result.ticket_id %}
+                    <p>
+                        <small>
+                            Ticket ID:
+                            {{ result.ticket_id }}
+                        </small>
+                    </p>
+                {% endif %}
+                {% if scanned_code %}
+                    <p>
+                        <small>
+                            Scanned Code:
+                            <code>
+                                {{ scanned_code }}
+                            </code>
+                        </small>
+                    </p>
+                {% endif %}
+            </div>
+        {% endif %}
+        <form method="post"
+        action="/checkin/{{ event.id }}/scan"
+        aria-label="Ticket Scanner and Manual Check-In Form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <fieldset class="events-checkin-layout-3">
+                <legend>
+                    Scan QR or Enter Ticket Code
+                </legend>
+                <div class="form-group events-checkin-layout-4">
+                    <label for="ticket-code"
+                    class="events-checkin-layout-5">
+                        Ticket Code / QR Text:
+                    </label>
+                    <input type="text"
+                    id="ticket-code"
+                    name="code"
+                    required
+                    autofocus
+                    autocomplete="off"
+                    placeholder="e.g. TKT-0001-1-ABCDEF..."
+                    class="events-checkin-layout-6">
+                </div>
+                <button type="submit" class="button button-primary events-checkin-layout-7">
+                    Verify &amp; Admit
+                </button>
+            </fieldset>
+        </form>
+        <nav aria-label="Admin navigation" class="events-checkin-layout-8">
+            <p>
+                <a href="/admin/events/{{ event.id }}/report">
+                    → View Event Attendance &amp; Financial Report
+                </a>
+            </p>
+            <p>
+                <a href="/events">
+                    ← Back to Events List
+                </a>
+            </p>
+        </nav>
+    </section>
+{% endblock %}

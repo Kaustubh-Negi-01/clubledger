@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{# Manage events: presentation only. Values are supplied by the backend; forms submit to API routes. #}
+{% block title %}
+    Manage events · ClubLedger
+{% endblock %}
+{% block header_title %}
+    Manage events
+{% endblock %}
+{% block content %}
+    <p class="lead">
+        Create an event, manage admissions and inspect reconciled ticket reports.
+    </p>
+    <details class="panel modal-details">
+        <summary>
+            Create event
+        </summary>
+        <div>
+            <form method="post" action="/admin/events">
+                <input type="hidden" name="csrf_token" value="{{ request.state.ui.csrf }}">
+                <div class="form-grid">
+                    {% for name,label,kind,value in [('title','Title','text',''),('venue','Venue','text',''),('starts_at','Starts (UTC)','datetime-local',''),('ends_at','Ends (UTC)','datetime-local',''),('capacity','Capacity','number','100'),('public_price','Public ticket (₹)','number','500'),('member_price','Member ticket (₹)','number','400')] %}
+                        <div>
+                            <label for="{{ name }}">
+                                {{ label }}
+                            </label>
+                            <input id="{{ name }}"
+                            name="{{ name }}"
+                            type="{{ kind }}"
+                            value="{{ value }}"
+                            {% if kind=='number' %}min="0" step="{{ '1' if name=='capacity' else '0.01' }}"{% endif %}
+                            required>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="actions">
+                    <button>
+                        Create event
+                    </button>
+                </div>
+            </form>
+        </div>
+    </details>
+    <section class="panel">
+        {% for e in events %}
+            <div class="row-item">
+                <div>
+                    <strong>
+                        {{ e.title }}
+                    </strong>
+                    <small>
+                        {{ e.venue }}
+                        ·
+                        {{ e.starts_at }}
+                        ·
+                        {{ e.status }}
+                    </small>
+                </div>
+                <div class="actions">
+                    <a class="button secondary" href="/admin/events/{{ e.id }}/report">
+                        Report
+                    </a>
+                    <a class="button secondary" href="/checkin/{{ e.id }}">
+                        Check-in
+                    </a>
+                    {% if e.status!="CANCELLED" %}
+                        <form method="post"
+                        action="/admin/events/{{ e.id }}/cancel"
+                        data-confirm="Cancel this event and refund eligible unused paid tickets?">
+                            <input type="hidden" name="csrf_token" value="{{ request.state.ui.csrf }}">
+                            <button class="secondary">
+                                Cancel event
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <p class="empty">
+                No events created yet.
+            </p>
+        {% endfor %}
+    </section>
+{% endblock %}

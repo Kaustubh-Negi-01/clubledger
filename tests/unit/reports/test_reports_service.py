@@ -10,6 +10,7 @@ Tests:
   - Reconciling event ticket and journal totals separately per payment
   - Check-integrity helper
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -40,7 +41,9 @@ def db_path():
 
     with unit_of_work(path) as conn:
         # Apply 0001_core.sql, 0002_payments.sql, 0006_journal.sql
-        apply_migrations(conn, files=["0001_core.sql", "0002_payments.sql", "0006_journal.sql"])
+        apply_migrations(
+            conn, files=["0001_core.sql", "0002_payments.sql", "0006_journal.sql"]
+        )
 
         # Also create events and tickets tables to test event reconciliation
         conn.executescript(
@@ -161,7 +164,9 @@ def test_balance_cutoffs_and_rejections(db_path):
 
         # 4. Reject specifying both at and watermark_id
         with pytest.raises(DomainError) as excinfo:
-            reports_service.balance(conn, "1100", at="2026-10-10T10:00:00Z", watermark_id=e1)
+            reports_service.balance(
+                conn, "1100", at="2026-10-10T10:00:00Z", watermark_id=e1
+            )
         assert excinfo.value.code == "VALIDATION"
 
 
@@ -266,11 +271,33 @@ def test_acceptance_flow_dues_ticket_sale_settlement(db_path):
         )
 
         # 1. Post Dues Payment Received (50000)
-        p1 = Payment(101, "pay_dues", 1, "DUES", "memberships", 1, 50000, "SUCCEEDED", "FULFILLED", 1)
+        p1 = Payment(
+            101,
+            "pay_dues",
+            1,
+            "DUES",
+            "memberships",
+            1,
+            50000,
+            "SUCCEEDED",
+            "FULFILLED",
+            1,
+        )
         journal_service.post_payment_received(conn, p1, fulfilled=True)
 
         # 2. Post Ticket Payment Received (40000)
-        p2 = Payment(102, "pay_ticket", 1, "TICKET", "ticket_holds", 1, 40000, "SUCCEEDED", "FULFILLED", 1)
+        p2 = Payment(
+            102,
+            "pay_ticket",
+            1,
+            "TICKET",
+            "ticket_holds",
+            1,
+            40000,
+            "SUCCEEDED",
+            "FULFILLED",
+            1,
+        )
         journal_service.post_payment_received(conn, p2, fulfilled=True)
 
         # Clearing equals both received amounts (50000 + 40000 = 90000)

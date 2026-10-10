@@ -1,1 +1,0 @@
-"""ClubLedger core modules."""

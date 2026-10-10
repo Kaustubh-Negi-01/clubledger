@@ -29,12 +29,23 @@ def mock_create_payment(
     amount_paise: int,
 ) -> Payment:
     # Get or insert an OPEN term
-    term_row = conn.execute("SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;").fetchone()
+    term_row = conn.execute(
+        "SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;"
+    ).fetchone()
     term_id = term_row["id"] if term_row else 1
     cur = conn.execute(
         "INSERT INTO payments (public_id, user_id, purpose, ref_table, ref_id, amount_paise, currency, status, fulfillment, term_id, created_at) "
         "VALUES (?, ?, ?, ?, ?, ?, 'INR', 'CREATED', 'NONE', ?, ?);",
-        (f"pay_{ref_id}", user_id, purpose, ref_table, ref_id, amount_paise, term_id, clock.now()),
+        (
+            f"pay_{ref_id}",
+            user_id,
+            purpose,
+            ref_table,
+            ref_id,
+            amount_paise,
+            term_id,
+            clock.now(),
+        ),
     )
     return Payment(
         id=cur.lastrowid,  # type: ignore
@@ -86,7 +97,9 @@ def test_start_join_and_fulfill_dues_lifecycle(db_conn):
     assert payment.purpose == "DUES"
 
     # Verify membership created in PENDING status
-    m_row = db_conn.execute("SELECT * FROM memberships WHERE id = ?;", (payment.ref_id,)).fetchone()
+    m_row = db_conn.execute(
+        "SELECT * FROM memberships WHERE id = ?;", (payment.ref_id,)
+    ).fetchone()
     assert m_row["status"] == "PENDING"
     assert m_row["member_code"] is None
     assert m_row["qr_token"] is None
@@ -106,7 +119,9 @@ def test_start_join_and_fulfill_dues_lifecycle(db_conn):
     assert res.outcome == "FULFILLED"
 
     # Verify membership now ACTIVE with code and qr_token
-    active_m = db_conn.execute("SELECT * FROM memberships WHERE id = ?;", (payment.ref_id,)).fetchone()
+    active_m = db_conn.execute(
+        "SELECT * FROM memberships WHERE id = ?;", (payment.ref_id,)
+    ).fetchone()
     assert active_m["status"] == "ACTIVE"
     assert active_m["member_code"] is not None
     assert active_m["qr_token"] is not None
@@ -162,7 +177,9 @@ def test_future_renewal_within_30_days_of_expiry(db_conn):
     assert renewal_pay.id != pay.id
 
     # Verify renewal created for next year
-    renew_m = db_conn.execute("SELECT * FROM memberships WHERE id = ?;", (renewal_pay.ref_id,)).fetchone()
+    renew_m = db_conn.execute(
+        "SELECT * FROM memberships WHERE id = ?;", (renewal_pay.ref_id,)
+    ).fetchone()
     assert renew_m["membership_year"] == "2027-28"
     assert renew_m["status"] == "PENDING"
     assert renew_m["starts_at"] == "2027-07-31T18:30:00Z"
@@ -177,7 +194,9 @@ def test_lookup_member_active_and_expired(db_conn):
         create_payment_fn=mock_create_payment,
     )
     fulfill_dues(db_conn, pay, manual=False, now=clock.now())
-    m = db_conn.execute("SELECT member_code, qr_token FROM memberships WHERE id = ?;", (pay.ref_id,)).fetchone()
+    m = db_conn.execute(
+        "SELECT member_code, qr_token FROM memberships WHERE id = ?;", (pay.ref_id,)
+    ).fetchone()
 
     # Lookup by code when active
     check = lookup_member(db_conn, code=m["member_code"], at=clock.now())
@@ -190,7 +209,9 @@ def test_lookup_member_active_and_expired(db_conn):
     assert check_qr.active is True
 
     # Advance time past expiration
-    check_future = lookup_member(db_conn, code=m["member_code"], at="2027-08-05T00:00:00Z")
+    check_future = lookup_member(
+        db_conn, code=m["member_code"], at="2027-08-05T00:00:00Z"
+    )
     assert check_future.active is False
     assert check_future.status == "EXPIRED"
 
@@ -216,7 +237,9 @@ def test_dues_purpose_handler_wiring_and_refund(db_conn):
 
     # Apply refund transitions to REVOKED
     DUES_PURPOSE_HANDLER.apply_refund(db_conn, pay, clock.now())
-    m = db_conn.execute("SELECT status FROM memberships WHERE id = ?;", (pay.ref_id,)).fetchone()
+    m = db_conn.execute(
+        "SELECT status FROM memberships WHERE id = ?;", (pay.ref_id,)
+    ).fetchone()
     assert m["status"] == "REVOKED"
 
     # Subsequent refund check fails with REFUND_BLOCKED

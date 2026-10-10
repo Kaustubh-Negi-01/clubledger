@@ -51,7 +51,12 @@ def test_pre_session_csrf_verification() -> None:
     assert exc_info.value.http_status == 403
 
     # Missing cookie raises 403 CSRF_FAILED
-    no_cookie_scope = {"type": "http", "method": "POST", "path": "/auth/login", "headers": []}
+    no_cookie_scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/auth/login",
+        "headers": [],
+    }
     req_no_cookie = Request(no_cookie_scope)
     with pytest.raises(DomainError) as exc_info_no_cookie:
         verify_pre_session_csrf(req_no_cookie, token)

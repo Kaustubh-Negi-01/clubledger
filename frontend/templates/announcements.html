@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{# Announcements: presentation only. Values are supplied by the backend; forms submit to API routes. #}
+{% block title %}
+    Club announcements · ClubLedger
+{% endblock %}
+{% block header_title %}
+    Club announcements
+{% endblock %}
+{% block content %}
+    <p class="lead">
+        Updates from your student association, published by club officers.
+    </p>
+    <div class="grid-2">
+        <div>
+            {% for a in announcements %}
+                <article class="panel">
+                    <span class="pill">
+                        Club update
+                    </span>
+                    <h2 class="announcements-layout-1">
+                        <a href="/announcements/{{ a.id }}">
+                            {{ a.title }}
+                        </a>
+                    </h2>
+                    <p class="pre-wrap">{{ a.body }}</p>
+                    <small class="muted">
+                        {{ a.author }}
+                        ·
+                        {{ a.published_at[:10] }}
+                    </small>
+                </article>
+            {% else %}
+                <section class="panel">
+                    <p class="empty">
+                        No announcements have been published.
+                    </p>
+                </section>
+            {% endfor %}
+        </div>
+        <section class="panel">
+            <h2>
+                Stay in the loop
+            </h2>
+            <p class="muted">
+                Subscribe to club updates. In this local demo, messages are captured locally rather than sent by email.
+            </p>
+            <form action="/subscribe" method="post">
+                <input type="hidden" name="csrf_token" value="{{ request.state.pre_csrf }}">
+                <label for="subscriber-email">
+                    Email address
+                </label>
+                <input id="subscriber-email"
+                type="email"
+                name="email"
+                required
+                autocomplete="email">
+                <div class="actions">
+                    <button>
+                        Subscribe
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+{% endblock %}

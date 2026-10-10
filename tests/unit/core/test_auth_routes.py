@@ -154,20 +154,33 @@ def test_login_rate_limiting_over_http() -> None:
     # Register user
     client.post(
         "/auth/register",
-        data={"email": "rl@example.com", "name": "RL", "password": "Password123", "csrf_token": csrf_token},
+        data={
+            "email": "rl@example.com",
+            "name": "RL",
+            "password": "Password123",
+            "csrf_token": csrf_token,
+        },
     )
 
     # 5 attempts allowed within 1 minute
     for _ in range(5):
         client.post(
             "/auth/login",
-            data={"email": "rl@example.com", "password": "WrongPassword", "csrf_token": csrf_token},
+            data={
+                "email": "rl@example.com",
+                "password": "WrongPassword",
+                "csrf_token": csrf_token,
+            },
         )
 
     # 6th attempt within the minute returns 429 RATE_LIMITED (AUTH-12)
     throttled = client.post(
         "/auth/login",
-        data={"email": "rl@example.com", "password": "WrongPassword", "csrf_token": csrf_token},
+        data={
+            "email": "rl@example.com",
+            "password": "WrongPassword",
+            "csrf_token": csrf_token,
+        },
         headers={"Accept": "application/json"},
     )
     assert throttled.status_code == 429

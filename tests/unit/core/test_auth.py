@@ -60,12 +60,16 @@ def test_scrypt_password_hashing_and_verification() -> None:
 
 
 def test_user_registration_and_authentication(db) -> None:
-    user_id = register_user(db, email="User@Example.Com", name="Test User", password="Password123")
+    user_id = register_user(
+        db, email="User@Example.Com", name="Test User", password="Password123"
+    )
     assert user_id > 0
 
     # Case-insensitive duplicate registration rejected with 422 VALIDATION (AUTH-01)
     with pytest.raises(DomainError) as exc_info:
-        register_user(db, email="user@example.com", name="Another User", password="Password123")
+        register_user(
+            db, email="user@example.com", name="Another User", password="Password123"
+        )
     assert exc_info.value.code == "VALIDATION"
     assert exc_info.value.http_status == 422
 
@@ -74,21 +78,33 @@ def test_user_registration_and_authentication(db) -> None:
     assert auth_id == user_id
 
     # Authenticate with wrong password
-    assert authenticate_user(db, email="user@example.com", password="WrongPassword") is None
+    assert (
+        authenticate_user(db, email="user@example.com", password="WrongPassword")
+        is None
+    )
 
     # Authenticate with non-existent email
-    assert authenticate_user(db, email="unknown@example.com", password="Password123") is None
+    assert (
+        authenticate_user(db, email="unknown@example.com", password="Password123")
+        is None
+    )
 
 
-def test_session_lifecycle_and_sliding_expiry(db, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_session_lifecycle_and_sliding_expiry(
+    db, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("CLUBLEDGER_ENV", "test")
     clock.set_now("2026-08-01T10:00:00Z")
 
-    user_id = register_user(db, email="session@example.com", name="Session User", password="Password123")
+    user_id = register_user(
+        db, email="session@example.com", name="Session User", password="Password123"
+    )
     raw_token, csrf_token = create_session(db, user_id)
 
     # Raw token is NOT stored in DB, only token_hash (AUTH-02)
-    stored_token_row = db.execute("SELECT token_hash FROM sessions WHERE user_id = ?;", (user_id,)).fetchone()
+    stored_token_row = db.execute(
+        "SELECT token_hash FROM sessions WHERE user_id = ?;", (user_id,)
+    ).fetchone()
     assert stored_token_row["token_hash"] == hash_token(raw_token)
     assert stored_token_row["token_hash"] != raw_token
 
@@ -112,18 +128,24 @@ def test_session_lifecycle_and_sliding_expiry(db, monkeypatch: pytest.MonkeyPatc
     assert s3 is not None
     assert s3.last_seen_at == "2026-08-01T10:01:05Z"
     assert s3.idle_expires_at == "2026-08-01T12:01:05Z"
-    assert s3.absolute_expires_at == "2026-08-01T18:00:00Z"  # Absolute expires unchanged
+    assert (
+        s3.absolute_expires_at == "2026-08-01T18:00:00Z"
+    )  # Absolute expires unchanged
 
     # Idle expiry: inactivity for > 2 hours invalidates session
     clock.set_now("2026-08-01T14:02:00Z")
     assert load_session(db, raw_token) is None
 
 
-def test_session_absolute_expiry_and_logout(db, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_session_absolute_expiry_and_logout(
+    db, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("CLUBLEDGER_ENV", "test")
     clock.set_now("2026-08-01T10:00:00Z")
 
-    user_id = register_user(db, email="abs@example.com", name="Abs User", password="Password123")
+    user_id = register_user(
+        db, email="abs@example.com", name="Abs User", password="Password123"
+    )
     raw_token, _ = create_session(db, user_id)
 
     # Active every 30 minutes up to +8h01m -> absolute limit still terminates session
@@ -139,32 +161,45 @@ def test_session_absolute_expiry_and_logout(db, monkeypatch: pytest.MonkeyPatch)
     assert load_session(db, raw_token2) is None
 
 
-def test_user_deactivation_revokes_sessions(db, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_user_deactivation_revokes_sessions(
+    db, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("CLUBLEDGER_ENV", "test")
     clock.set_now("2026-08-01T10:00:00Z")
 
-    user_id = register_user(db, email="deact@example.com", name="Deact User", password="Password123")
+    user_id = register_user(
+        db, email="deact@example.com", name="Deact User", password="Password123"
+    )
     raw_token, _ = create_session(db, user_id)
-    assert load_session(db, raw_token) is None or load_session(db, raw_token).user_id == user_id
+    assert (
+        load_session(db, raw_token) is None
+        or load_session(db, raw_token).user_id == user_id
+    )
 
     # Deactivating user revokes sessions immediately (AUTH-06)
     deactivate_user(db, user_id)
     assert load_session(db, raw_token) is None
 
 
-def test_live_permission_checks_and_role_revocation(db, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_live_permission_checks_and_role_revocation(
+    db, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("CLUBLEDGER_ENV", "test")
     now = "2026-08-01T10:00:00Z"
     clock.set_now(now)
 
-    user_id = register_user(db, email="roles@example.com", name="Role User", password="Password123")
+    user_id = register_user(
+        db, email="roles@example.com", name="Role User", password="Password123"
+    )
 
     # Plain registered member has no staff permissions (AUTH-01, CONTRACT §4.3)
     perms = get_user_permissions(db, user_id)
     assert len(perms) == 0
 
     # Grant 'door' role
-    door_role_id = db.execute("SELECT id FROM roles WHERE code = 'door';").fetchone()["id"]
+    door_role_id = db.execute("SELECT id FROM roles WHERE code = 'door';").fetchone()[
+        "id"
+    ]
     db.execute(
         "INSERT INTO user_roles (user_id, role_id, granted_at, created_at) VALUES (?, ?, ?, ?);",
         (user_id, door_role_id, now, now),
@@ -177,12 +212,16 @@ def test_live_permission_checks_and_role_revocation(db, monkeypatch: pytest.Monk
     assert "finance.view" not in door_perms
 
     # Revoking role takes effect immediately without caching (AUTH-05)
-    db.execute("UPDATE user_roles SET revoked_at = ? WHERE user_id = ?;", (now, user_id))
+    db.execute(
+        "UPDATE user_roles SET revoked_at = ? WHERE user_id = ?;", (now, user_id)
+    )
     revoked_perms = get_user_permissions(db, user_id)
     assert len(revoked_perms) == 0
 
     # Admin role grants all permissions
-    admin_role_id = db.execute("SELECT id FROM roles WHERE code = 'admin';").fetchone()["id"]
+    admin_role_id = db.execute("SELECT id FROM roles WHERE code = 'admin';").fetchone()[
+        "id"
+    ]
     db.execute(
         "INSERT INTO user_roles (user_id, role_id, granted_at, created_at) VALUES (?, ?, ?, ?);",
         (user_id, admin_role_id, now, now),

@@ -33,7 +33,9 @@ _GIT_COMMIT: str = ""
 def _get_git_commit() -> str:
     """Get current git commit hash."""
     try:
-        res = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True)
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+        )
         return res.stdout.strip()
     except Exception:
         return "unknown"
@@ -60,17 +62,27 @@ def pytest_sessionstart(session: pytest.Session) -> None:
 
 
 @pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) -> Generator[None, pytest.TestReport, None]:
+def pytest_runtest_makereport(
+    item: pytest.Item, call: pytest.CallInfo[None]
+) -> Generator[None, pytest.TestReport, None]:
     """Hook to capture test phase outcomes (setup, call, teardown)."""
     outcome = yield
     report = outcome.get_result()
 
     is_xfail = hasattr(report, "wasxfail")
     is_xpass = False
-    if report.when == "call" and hasattr(report, "wasxfail") and report.outcome == "passed":
+    if (
+        report.when == "call"
+        and hasattr(report, "wasxfail")
+        and report.outcome == "passed"
+    ):
         is_xpass = True
 
-    if report.when == "call" or (report.when in ("setup", "teardown") and report.failed) or (report.when == "setup" and report.skipped):
+    if (
+        report.when == "call"
+        or (report.when in ("setup", "teardown") and report.failed)
+        or (report.when == "setup" and report.skipped)
+    ):
         req_markers = []
         for mark in item.iter_markers(name="req"):
             if len(mark.args) >= 2:
@@ -102,11 +114,13 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) ->
             _TEST_RECORDS.append(rec)
 
         if report.failed:
-            _FAILURES.append({
-                "nodeid": item.nodeid,
-                "when": report.when,
-                "message": str(report.longrepr),
-            })
+            _FAILURES.append(
+                {
+                    "nodeid": item.nodeid,
+                    "when": report.when,
+                    "message": str(report.longrepr),
+                }
+            )
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
@@ -125,6 +139,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 # ============================================================================
 # Core Fixtures (DB, Clock, App Client)
 # ============================================================================
+
 
 @pytest.fixture
 def temp_db_path() -> Generator[Path, None, None]:
@@ -161,7 +176,7 @@ def temp_db_path() -> Generator[Path, None, None]:
 @pytest.fixture
 def db(temp_db_path: Path) -> Generator[sqlite3.Connection, None, None]:
     """Temporary SQLite database connection using Owner A's connect and apply_migrations.
-    
+
     Fails explicitly if dependencies are missing. Seeds default open term and roles.
     """
     from clubledger.core.db import connect, apply_migrations
@@ -176,7 +191,9 @@ def db(temp_db_path: Path) -> Generator[sqlite3.Connection, None, None]:
     seed_roles_and_permissions(conn)
     seed_plans(conn)
 
-    has_term = conn.execute("SELECT 1 FROM terms WHERE status = 'OPEN' LIMIT 1;").fetchone()
+    has_term = conn.execute(
+        "SELECT 1 FROM terms WHERE status = 'OPEN' LIMIT 1;"
+    ).fetchone()
     if not has_term:
         conn.execute(
             "INSERT INTO terms (id, label, starts_at, status, created_at) "
@@ -194,7 +211,7 @@ def db(temp_db_path: Path) -> Generator[sqlite3.Connection, None, None]:
 @pytest.fixture
 def clock() -> Generator[Any, None, None]:
     """Clock fixture using Owner A's core.clock.
-    
+
     Guarantees CLUBLEDGER_ENV == 'test' and resets clock state after each test.
     """
     old_env = os.environ.get("CLUBLEDGER_ENV")
@@ -202,6 +219,7 @@ def clock() -> Generator[Any, None, None]:
     try:
         from clubledger.core.clock import now, set_now, reset
         import clubledger.core.clock as clock_mod
+
         reset()
         yield clock_mod
         reset()
@@ -213,10 +231,13 @@ def clock() -> Generator[Any, None, None]:
 
 
 @pytest.fixture
-def app_client(temp_db_path: Path, db: sqlite3.Connection) -> Generator[Any, None, None]:
+def app_client(
+    temp_db_path: Path, db: sqlite3.Connection
+) -> Generator[Any, None, None]:
     """FastAPI TestClient fixture configured against the temporary migrated test database."""
     from clubledger.main import create_app
     from starlette.testclient import TestClient
+
     app = create_app()
     with TestClient(app) as client:
         yield client
@@ -226,6 +247,7 @@ def app_client(temp_db_path: Path, db: sqlite3.Connection) -> Generator[Any, Non
 def make_user(db: sqlite3.Connection) -> Any:
     """Factory fixture to create a user with optional roles."""
     from tests.factories import create_user
+
     return lambda **kwargs: create_user(db, **kwargs)
 
 
@@ -233,6 +255,7 @@ def make_user(db: sqlite3.Connection) -> Any:
 def make_event(db: sqlite3.Connection) -> Any:
     """Factory fixture to create an event."""
     from tests.factories import create_event
+
     return lambda **kwargs: create_event(db, **kwargs)
 
 
@@ -240,4 +263,5 @@ def make_event(db: sqlite3.Connection) -> Any:
 def login_as(app_client: Any, db: sqlite3.Connection) -> Any:
     """Fixture to authenticate app_client as a given user."""
     from tests.factories import login_user
+
     return lambda user: login_user(app_client, user, db)

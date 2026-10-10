@@ -8,7 +8,7 @@ from clubledger.core import clock
 from clubledger.core.auth import COOKIE_SESSION, create_session
 from clubledger.core.db import apply_migrations, connect
 from clubledger.core.types import Payment
-from clubledger.events.routes import router as events_router
+from clubledger.api.events import router as events_router
 from clubledger.events.service import fulfill_ticket_hold
 import clubledger.events.service as events_service
 from clubledger.main import create_app
@@ -24,12 +24,23 @@ def mock_create_payment(
     amount_paise: int,
 ) -> Payment:
     """Mock payment creation for route tests."""
-    term_row = conn.execute("SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;").fetchone()
+    term_row = conn.execute(
+        "SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;"
+    ).fetchone()
     term_id = term_row["id"] if term_row else 1
     cur = conn.execute(
         "INSERT INTO payments (public_id, user_id, purpose, ref_table, ref_id, amount_paise, currency, status, fulfillment, term_id, created_at) "
         "VALUES (?, ?, ?, ?, ?, ?, 'INR', 'CREATED', 'NONE', ?, ?);",
-        (f"pay_pub_{ref_id}", user_id, purpose, ref_table, ref_id, amount_paise, term_id, clock.now()),
+        (
+            f"pay_pub_{ref_id}",
+            user_id,
+            purpose,
+            ref_table,
+            ref_id,
+            amount_paise,
+            term_id,
+            clock.now(),
+        ),
     )
     return Payment(
         id=cur.lastrowid,  # type: ignore
@@ -63,15 +74,36 @@ def app_client(monkeypatch, tmp_path):
     )
 
     # Seed roles and permissions
-    conn.execute("INSERT INTO roles (id, code, created_at) VALUES (1, 'admin', ?);", (clock.now(),))
-    conn.execute("INSERT INTO roles (id, code, created_at) VALUES (2, 'door_staff', ?);", (clock.now(),))
-    conn.execute("INSERT INTO roles (id, code, created_at) VALUES (3, 'manager', ?);", (clock.now(),))
+    conn.execute(
+        "INSERT INTO roles (id, code, created_at) VALUES (1, 'admin', ?);",
+        (clock.now(),),
+    )
+    conn.execute(
+        "INSERT INTO roles (id, code, created_at) VALUES (2, 'door_staff', ?);",
+        (clock.now(),),
+    )
+    conn.execute(
+        "INSERT INTO roles (id, code, created_at) VALUES (3, 'manager', ?);",
+        (clock.now(),),
+    )
 
-    conn.execute("INSERT INTO permissions (id, code, created_at) VALUES (1, 'events.checkin', ?);", (clock.now(),))
-    conn.execute("INSERT INTO permissions (id, code, created_at) VALUES (2, 'events.manage', ?);", (clock.now(),))
+    conn.execute(
+        "INSERT INTO permissions (id, code, created_at) VALUES (1, 'events.checkin', ?);",
+        (clock.now(),),
+    )
+    conn.execute(
+        "INSERT INTO permissions (id, code, created_at) VALUES (2, 'events.manage', ?);",
+        (clock.now(),),
+    )
 
-    conn.execute("INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES (2, 1, ?);", (clock.now(),))
-    conn.execute("INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES (3, 2, ?);", (clock.now(),))
+    conn.execute(
+        "INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES (2, 1, ?);",
+        (clock.now(),),
+    )
+    conn.execute(
+        "INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES (3, 2, ?);",
+        (clock.now(),),
+    )
 
     # Seed users
     # User 1: Regular attendee
@@ -186,7 +218,9 @@ def test_event_detail_authenticated_shows_form(app_client):
 
 
 def test_hold_post_requires_auth(app_client):
-    res = app_client.post("/events/1/hold", data={"qty": 1, "idempotency_key": "k", "csrf_token": "c"})
+    res = app_client.post(
+        "/events/1/hold", data={"qty": 1, "idempotency_key": "k", "csrf_token": "c"}
+    )
     assert res.status_code == 401
 
 
@@ -256,7 +290,9 @@ def test_hold_post_paid_tickets_with_genuine_payment_service(app_client):
     assert res.headers["location"].startswith("/pay/")
 
 
-def test_hold_post_paid_tickets_with_mock_payment_redirects_to_pay(app_client, monkeypatch):
+def test_hold_post_paid_tickets_with_mock_payment_redirects_to_pay(
+    app_client, monkeypatch
+):
     monkeypatch.setattr(events_service, "_genuine_create_payment", mock_create_payment)
 
     from clubledger.config import get_db_path
@@ -424,5 +460,11 @@ def test_admin_event_report_permission(app_client):
     app_client.cookies.set(COOKIE_SESSION, raw_token_manager)
     res_auth = app_client.get("/admin/events/1/report")
     assert res_auth.status_code == 200
-    assert "Attendance &amp; Financial Summary: Annual Gala" in res_auth.text
+    # Read the heading as a person does; source indentation is not behavior.
+    from bs4 import BeautifulSoup
+
+    headings = BeautifulSoup(res_auth.text, "html.parser").select("h2")
+    assert "Attendance & Financial Summary: Annual Gala" in [
+        " ".join(heading.get_text(" ", strip=True).split()) for heading in headings
+    ]
     assert "Tickets Sold" in res_auth.text

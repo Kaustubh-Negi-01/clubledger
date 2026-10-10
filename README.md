@@ -1,72 +1,64 @@
 # ClubLedger
 
-Single-club ledger and operational system for Skyline Student Association.
+A student association workspace for memberships, events, merchandise, tasks, expenses and financial records.
 
-## Requirements
-- Python 3.12+
+**New to the code? Start with [the beginner guide](docs/START_HERE.md).** Then open the [file-by-file map](docs/FILE_GUIDE.md) or [reviewer preparation notes](docs/REVIEWER_PREPARATION.md).
 
-## Setup Instructions
+## Four main folders
 
-1. Create and activate a virtual environment:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -e ".[test]"
-   ```
-
-3. Run migrations:
-   ```bash
-   python -m clubledger.cli migrate
-   ```
-
-4. Seed and start the local demo:
-   ```bash
-   python -m clubledger.cli seed --demo
-   python -m clubledger.cli start --host 127.0.0.1 --port 8010
-   ```
-   Open <http://127.0.0.1:8010/dashboard>. The default environment is `dev`.
-
-5. Run the full test suite and checks from the repository root:
-   ```bash
-   python -m pytest -q
-   python -m ruff check clubledger tests
-   python -m tests.req_coverage --mode progress
-   ```
-
-## Demo accounts
-
-Demo seed accounts use password `DemoPassword123!`:
-
-| Account | Purpose |
+| Folder | What belongs here |
 | --- | --- |
-| `student@skyline.edu` | Membership, events and merchandise |
-| `admin@skyline.edu` | Full officer workspace |
-| `treasurer@skyline.edu` | Financial operations |
-| `events@skyline.edu` | Event management and admission |
+| [frontend/](frontend/README.md) | HTML/Jinja pages, CSS, JavaScript, fonts and illustrations |
+| [backend/](backend/README.md) | Python/FastAPI, HTTP API routes, security and business logic |
+| [database/](database/README.md) | SQL migrations and ignored local database/receipt storage |
+| [config/](config/README.md) | Environment settings and integration documentation |
 
-Payment outcomes are simulated and email is captured locally; this demo does not charge cards or deliver external email. The development demo clock can demonstrate T+1 settlement. Advancing it can expire sessions.
+`.env` is an ignored settings file in the repository root, not an API-code folder. `.env.example` documents the available settings. `tests/` contains automated checks; `docs/` explains the architecture.
 
-SQLite data defaults to `data/clubledger.db`; use `CLUBLEDGER_DB_PATH` to select another database. Database contents and generated secrets are excluded from Git.
+## Run locally on Windows
 
-## Delivered workspace
+Use Python 3.12. Run these commands from the repository root:
 
-- Responsive campus dashboard and permission-based navigation.
-- Membership verification cards and server-authoritative member pricing.
-- Ticket reservations, payment fulfillment, refunds and one-time admission.
-- Merchandise reservations, expiry, refunds and officer pickup.
-- Fundraiser task boards, receipt-backed expense approval and reimbursement.
-- Announcements, subscriptions, reminders and local mail capture.
-- Double-entry journal, financial reports, reconciliation and integrity checks.
-- Semester-close checklist, immutable snapshots and officer handover.
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[test]"
+Copy-Item .env.example .env
+.\.venv\Scripts\python.exe -m clubledger.cli migrate
+.\.venv\Scripts\python.exe -m clubledger.cli seed --demo
+.\.venv\Scripts\python.exe -m clubledger.cli start
+```
 
-The approved local version passed 217 tests on Python 3.12, with one Starlette/HTTPx deprecation warning. All 20 main navigation pages were checked at phone width without page-level horizontal overflow. Wide tables scroll within their own containers.
+Open <http://127.0.0.1:8010/dashboard>. Do not overwrite your existing `.env` when updating an already configured checkout. Demo seed accounts include `student@skyline.edu`, `admin@skyline.edu`, `treasurer@skyline.edu` and `events@skyline.edu`, with password `DemoPassword123!`.
 
-The requirement evidence tracker records 20 of 110 requirements as implemented. Progress mode permits planned requirements; final requirement certification and external evaluator scores remain incomplete. The documents under `docs/` describe intended requirements, not certification of every feature.
+On macOS/Linux, use `python3.12 -m venv .venv`, `.venv/bin/python` for the Python commands and `cp .env.example .env` for initial configuration.
+
+## Verify
+
+```sh
+python -m pytest -q
+python -m ruff check backend tests
+python -m tests.req_coverage --mode progress
+```
+
+Use your virtual environment's Python. The reorganized project passed 222 tests, with one existing Starlette/HTTPx deprecation warning. See `docs/REORGANIZATION.md` for verification details.
+
+## Features and boundaries
+
+The app covers membership cards and discounts, ticket reservations and admission, stock reservations and pickup, task boards, receipt-backed reimbursements, announcements, a double-entry journal, financial reports, semester snapshots and officer handover.
+
+Payments and email are **local simulations**. There is no real card charge, email delivery service or runtime AI API. The requirement evidence tracker is separate from the passing test count: 20/110 requirements were marked implemented before reorganization, with final certification incomplete.
+
+## Documentation
+
+- [Beginner guide and technology glossary](docs/START_HERE.md)
+- [Each file and its job](docs/FILE_GUIDE.md)
+- [Actual HTTP endpoints](docs/API_REFERENCE.md)
+- [Database structure](docs/DATABASE_STRUCTURE.md)
+- [Reviewer questions and code walkthroughs](docs/REVIEWER_PREPARATION.md)
+- [What moved and how it was verified](docs/REORGANIZATION.md)
+
+Original planning documents (`CONTRACT.md`, `REQUIREMENTS.md`, `BUILD_ORDER.md`) remain under `docs/`; historical paths in them may refer to the old layout. The new file guide describes the actual folder layout.
 
 ## Assets
 
-Campus illustrations are original. Space Grotesk is hosted locally with its SIL Open Font License in `clubledger/web/static/fonts/OFL.txt`. Reference websites informed visual direction; their artwork and source code were not copied.
+Campus illustrations are original. Space Grotesk is served locally under the SIL Open Font License in `frontend/static/fonts/OFL.txt`. HTMX vendor source and its license are kept in `frontend/static/vendor/`, but the current app does not load it.

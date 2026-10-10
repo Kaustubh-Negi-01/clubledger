@@ -52,7 +52,9 @@ def test_create_and_sign_simulator_payload():
     assert payload["amount_paise"] == 25000
     assert payload["currency"] == "INR"
 
-    raw_body, header = sign_simulator_payload(payload, secret="sim_secret_key", timestamp=1700000000)
+    raw_body, header = sign_simulator_payload(
+        payload, secret="sim_secret_key", timestamp=1700000000
+    )
     assert header.startswith("t=1700000000,v1=")
     assert len(header.split("v1=")[1]) == 64
 
@@ -60,7 +62,14 @@ def test_create_and_sign_simulator_payload():
 def test_dispatch_simulated_outcome(sim_db: str):
     conn = connect(sim_db)
     try:
-        p = create_payment(conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000)
+        p = create_payment(
+            conn,
+            user_id=1,
+            purpose="DUES",
+            ref_table="memberships",
+            ref_id=10,
+            amount_paise=25000,
+        )
 
         handlers = {
             "DUES": PurposeHandler(
@@ -81,7 +90,9 @@ def test_dispatch_simulated_outcome(sim_db: str):
         assert outcome.outcome == "APPLIED"
         assert outcome.payment_id == p.id
 
-        row = conn.execute("SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)).fetchone()
+        row = conn.execute(
+            "SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)
+        ).fetchone()
         assert row["status"] == "SUCCEEDED"
         assert row["fulfillment"] == "FULFILLED"
     finally:

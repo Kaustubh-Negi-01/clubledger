@@ -7,6 +7,7 @@ Tests:
   - GET /finance/integrity
   - Access control: perm:finance.view required (401 without auth, 403 without permission).
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -22,7 +23,7 @@ from clubledger.core.db import apply_migrations, unit_of_work
 from clubledger.core.auth import create_session
 from clubledger.core import clock
 from clubledger.journal import service as journal_service
-from clubledger.reports.routes import router as finance_router
+from clubledger.api.reports import router as finance_router
 
 
 @pytest.fixture(autouse=True)
@@ -41,7 +42,9 @@ def app_and_db(monkeypatch):
     monkeypatch.setenv("CLUBLEDGER_DB_PATH", path)
 
     with unit_of_work(path) as conn:
-        apply_migrations(conn, files=["0001_core.sql", "0002_payments.sql", "0006_journal.sql"])
+        apply_migrations(
+            conn, files=["0001_core.sql", "0002_payments.sql", "0006_journal.sql"]
+        )
 
         # Seed roles, permissions, terms, users
         conn.execute(
@@ -91,13 +94,25 @@ def app_and_db(monkeypatch):
             VALUES (101, 'pay_101', 1, 'DUES', 'memberships', 1, 50000, 'SUCCEEDED', 'FULFILLED', 1, '2026-10-10T10:00:00Z')
             """
         )
-        p = Payment(101, "pay_101", 1, "DUES", "memberships", 1, 50000, "SUCCEEDED", "FULFILLED", 1)
+        p = Payment(
+            101,
+            "pay_101",
+            1,
+            "DUES",
+            "memberships",
+            1,
+            50000,
+            "SUCCEEDED",
+            "FULFILLED",
+            1,
+        )
         journal_service.post_payment_received(conn, p, fulfilled=True)
 
         admin_raw_token, _ = create_session(conn, user_id=1)
         member_raw_token, _ = create_session(conn, user_id=2)
 
     from clubledger.main import create_app
+
     app = create_app()
     app.include_router(finance_router)
     client = TestClient(app)
@@ -150,7 +165,9 @@ def test_finance_json_and_drilldown(app_and_db):
     entry_id = acc_data["items"][0]["entry_id"]
 
     # 3. Entry drilldown
-    resp = client.get(f"/finance/entries/{entry_id}", headers={"Accept": "application/json"})
+    resp = client.get(
+        f"/finance/entries/{entry_id}", headers={"Accept": "application/json"}
+    )
     assert resp.status_code == 200
     entry_data = resp.json()
     assert entry_data["items"][0]["entry_id"] == entry_id
