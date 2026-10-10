@@ -1,0 +1,15 @@
+-- Minimal stand-ins for the Supabase pieces the migrations rely on (auth schema, roles).
+-- Used only by the in-process demo database and the SQL test-suite; real Supabase provides all of this.
+create schema if not exists auth;
+create table if not exists auth.users (
+  id uuid primary key default gen_random_uuid(),
+  email text,
+  raw_user_meta_data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+create or replace function auth.uid() returns uuid language sql stable as $$
+  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+$$;
+do $$ begin create role anon nologin; exception when duplicate_object then null; end $$;
+do $$ begin create role authenticated nologin; exception when duplicate_object then null; end $$;
+do $$ begin create role service_role nologin; exception when duplicate_object then null; end $$;
