@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} - Store - ClubLedger{% endblock %}
+{% block header_title %}{{ product.name }}{% endblock %}
+
+{% block content %}
+<section aria-labelledby="product-detail-heading">
+  <h2 id="product-detail-heading">{{ product.name }}</h2>
+
+  <p class="product-description">{{ product.description }}</p>
+  <p class="product-price"><strong>Base Price: ₹{{ price_inr }}</strong></p>
+
+  {% if session %}
+  <form method="post" action="/store/reserve" class="reserve-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
+
+    <fieldset>
+      <legend>Select Size</legend>
+      {% for variant in variants %}
+      <div class="form-group">
+        <label>
+          <input type="radio" name="variant_id" value="{{ variant.id }}"
+                 {% if variant.available_qty <= 0 %}disabled{% endif %}
+                 {% if loop.first and variant.available_qty > 0 %}checked{% endif %}>
+          <strong>Size {{ variant.size }}</strong>
+          {% if variant.available_qty > 0 %}
+          <span>({{ variant.available_qty }} available)</span>
+          {% else %}
+          <span class="stock-out">(Out of stock)</span>
+          {% endif %}
+        </label>
+      </div>
+      {% endfor %}
+    </fieldset>
+
+    <div class="form-group">
+      <label for="qty">Quantity (1-10):</label>
+      <input type="number" id="qty" name="qty" value="1" min="1" max="10" required>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit">Reserve &amp; Proceed to Payment</button>
+    </div>
+  </form>
+  {% else %}
+  <p><a href="/login">Log in</a> to reserve and purchase merchandise.</p>
+  {% endif %}
+
+  <p class="back-link"><a href="/store">&larr; Back to Store</a></p>
+</section>
+{% endblock %}

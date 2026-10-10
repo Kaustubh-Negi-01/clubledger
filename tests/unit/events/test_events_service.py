@@ -21,6 +21,7 @@ from clubledger.events.service import (
     get_available_seats,
     seed_events,
 )
+import clubledger.events.service as events_service
 
 
 def mock_create_payment(
@@ -219,8 +220,9 @@ def test_hold_idempotency_replay(db_conn):
     assert pay1.id == pay2.id
 
 
-def test_missing_dependency_raises_blocker(db_conn):
-    # When create_payment_fn is not provided and genuine module not installed, raises DependencyBlockerError
+def test_missing_dependency_raises_blocker(db_conn, monkeypatch):
+    # Explicitly simulate absence in isolated unit test per TURBO_B.txt
+    monkeypatch.setattr(events_service, "_genuine_create_payment", None)
     with pytest.raises(DependencyBlockerError) as exc:
         create_hold(
             db_conn,
@@ -231,6 +233,70 @@ def test_missing_dependency_raises_blocker(db_conn):
         )
     assert exc.value.code == "DEPENDENCY_BLOCKER"
     assert exc.value.http_status == 503
+
+
+def test_create_hold_with_genuine_payment_service(db_conn):
+    # Verify real dependency behavior now that A's payments module is integrated
+    hold, pay = create_hold(
+        db_conn,
+        user_id=1,
+        event_id=1,
+        qty=2,
+        idempotency_key="idemp_genuine_dep",
+    )
+    assert hold.id is not None
+    assert pay is not None
+    assert pay.purpose == "TICKET"
+    assert pay.amount_paise == 160000
+
+
+def test_create_hold_idempotency_different_parameters_conflict(db_conn):
+    create_hold(
+        db_conn,
+        user_id=1,
+        event_id=1,
+        qty=2,
+        idempotency_key="idemp_conflict_key",
+        create_payment_fn=mock_create_payment,
+    )
+    with pytest.raises(DomainError) as exc:
+        # Changed qty with same actor/action/key
+        create_hold(
+            db_conn,
+            user_id=1,
+            event_id=1,
+            qty=3,
+            idempotency_key="idemp_conflict_key",
+            create_payment_fn=mock_create_payment,
+        )
+    assert exc.value.code == "CONFLICT"
+    assert exc.value.http_status == 409
+
+
+def test_create_hold_replay_after_sold_out(db_conn):
+    # Hold initially created when event is ON_SALE
+    hold1, pay1 = create_hold(
+        db_conn,
+        user_id=1,
+        event_id=1,
+        qty=2,
+        idempotency_key="idemp_replay_sold_out",
+        create_payment_fn=mock_create_payment,
+    )
+    # Event becomes sold out / closed
+    db_conn.execute("UPDATE events SET status = 'CLOSED' WHERE id = 1;")
+
+    # Replay with same parameters returns original hold and payment
+    hold2, pay2 = create_hold(
+        db_conn,
+        user_id=1,
+        event_id=1,
+        qty=2,
+        idempotency_key="idemp_replay_sold_out",
+        create_payment_fn=mock_create_payment,
+    )
+    assert hold1.id == hold2.id
+    assert pay1.id == pay2.id
 
 
 def test_fulfill_ticket_hold_multi_seat_and_idempotency(db_conn):
@@ -328,36 +394,133 @@ def test_expire_holds_frees_capacity(db_conn):
     assert rerun == 0
 
 
+def test_proven_oversell_expired_hold_callback_rejected(db_conn):
+    # Event 3: 1-seat capacity per TURBO_B.txt proven oversell scenario
+    db_conn.execute(
+        "INSERT INTO events (id, term_id, title, venue, starts_at, ends_at, capacity, member_price_paise, public_price_paise, max_per_order, status, created_at) "
+        "VALUES (3, 1, 'Exclusive Talk', 'Room 1', '2026-11-10T12:00:00Z', '2026-11-10T14:00:00Z', 1, 1000, 1000, 1, 'ON_SALE', '2026-10-10T10:00:00Z');"
+    )
+
+    # 1. At 12:00:00Z User 1 creates hold for 1 seat with 10-min TTL (expires at 12:10:00Z)
+    clock.set_now("2026-10-10T12:00:00Z")
+    hold1, pay1 = create_hold(
+        db_conn,
+        user_id=1,
+        event_id=3,
+        qty=1,
+        idempotency_key="idemp_hold_1",
+        create_payment_fn=mock_create_payment,
+    )
+    assert hold1.expires_at == "2026-10-10T12:10:00Z"
+
+    # 2. At 12:11:00Z: User 2 creates hold for 1 seat (old hold is expired past 12:10)
+    clock.set_now("2026-10-10T12:11:00Z")
+    hold2, pay2 = create_hold(
+        db_conn,
+        user_id=2,
+        event_id=3,
+        qty=1,
+        idempotency_key="idemp_hold_2",
+        create_payment_fn=mock_create_payment,
+    )
+
+    # 3. Callback success for old hold 1 at 12:11 WITHOUT running expire command
+    res1 = fulfill_ticket_hold(db_conn, pay1, manual=False, now="2026-10-10T12:11:00Z")
+    # Must be rejected as UNFULFILLABLE due to hold expiration without consuming capacity
+    assert res1.outcome == "UNFULFILLABLE"
+    assert res1.reason == "TARGET_NOT_LIVE"
+
+    # 4. Callback success for new hold 2 at 12:12
+    res2 = fulfill_ticket_hold(db_conn, pay2, manual=False, now="2026-10-10T12:12:00Z")
+    assert res2.outcome == "FULFILLED"
+
+    # Verify that exactly ONE ticket was issued in total for this 1-seat event (no oversell)
+    tickets = db_conn.execute("SELECT * FROM tickets WHERE event_id = 3;").fetchall()
+    assert len(tickets) == 1
+    assert tickets[0]["user_id"] == 2
+
+    # 5. Manual fulfillment attempt for expired pay1 when capacity is sold out
+    manual_res = fulfill_ticket_hold(db_conn, pay1, manual=True, now="2026-10-10T12:15:00Z")
+    assert manual_res.outcome == "UNFULFILLABLE"
+    assert manual_res.reason == "SOLD_OUT"
+
+
 def test_event_report_and_cancellation(db_conn):
-    # Alice books 2 tickets for event 1
-    hold, payment = create_hold(
+    # Alice books 2 tickets for event 1 (SUCCEEDED payment)
+    hold_alice, payment_alice = create_hold(
         db_conn,
         user_id=1,
         event_id=1,
         qty=2,
-        idempotency_key="idemp_rep",
+        idempotency_key="idemp_rep_alice",
         create_payment_fn=mock_create_payment,
     )
-    fulfill_ticket_hold(db_conn, payment, manual=False, now="2026-10-10T10:05:00Z")
+    db_conn.execute("UPDATE payments SET status = 'SUCCEEDED' WHERE id = ?;", (payment_alice.id,))
+    fulfill_ticket_hold(db_conn, payment_alice, manual=False, now="2026-10-10T10:05:00Z")
 
-    # Bob books free ticket for event 2
+    # Bob books 1 ticket for event 1 (SUCCEEDED payment)
+    hold_bob, payment_bob = create_hold(
+        db_conn,
+        user_id=2,
+        event_id=1,
+        qty=1,
+        idempotency_key="idemp_rep_bob",
+        create_payment_fn=mock_create_payment,
+    )
+    db_conn.execute("UPDATE payments SET status = 'SUCCEEDED' WHERE id = ?;", (payment_bob.id,))
+    fulfill_ticket_hold(db_conn, payment_bob, manual=False, now="2026-10-10T10:06:00Z")
+
+    # Charlie books free ticket for event 2
     hold_free, _ = create_hold(db_conn, user_id=2, event_id=2, qty=1, idempotency_key="idemp_free_rep")
 
-    # Check in Alice's first ticket
-    ticket1 = db_conn.execute("SELECT code FROM tickets WHERE hold_id = ? AND seat_index = 1;", (hold.id,)).fetchone()
-    check_in(db_conn, event_id=1, code=ticket1["code"], staff_id=3)
+    # Check in Alice's first ticket (Alice now has 1 USED, 1 ISSUED)
+    ticket_alice1 = db_conn.execute(
+        "SELECT code FROM tickets WHERE hold_id = ? AND seat_index = 1;", (hold_alice.id,)
+    ).fetchone()
+    check_in(db_conn, event_id=1, code=ticket_alice1["code"], staff_id=3)
 
-    # Initial report for Event 1: sold=2, attended=1, no_shows=1, gross=160000 paise
+    # Cancel Event 1:
+    # - Bob's payment has only ISSUED tickets -> refunded through genuine refund_payment path
+    # - Alice's payment has a USED ticket -> flagged for manual review, payment not refunded
+    cancel_res1 = cancel_event(
+        db_conn,
+        {"TICKET": TICKET_PURPOSE_HANDLER},
+        event_id=1,
+        actor_id=3,
+    )
+    assert cancel_res1.refunded_count == 1
+    assert cancel_res1.flagged_count == 1
+
+    # Verify Bob's payment and tickets are REFUNDED in DB
+    p_bob = db_conn.execute("SELECT status, refunded_at FROM payments WHERE id = ?;", (payment_bob.id,)).fetchone()
+    assert p_bob["status"] == "REFUNDED"
+    assert p_bob["refunded_at"] is not None
+    t_bob = db_conn.execute("SELECT status FROM tickets WHERE hold_id = ?;", (hold_bob.id,)).fetchone()
+    assert t_bob["status"] == "REFUNDED"
+
+    # Repeat cancellation is idempotent
+    cancel_res1_repeat = cancel_event(
+        db_conn,
+        {"TICKET": TICKET_PURPOSE_HANDLER},
+        event_id=1,
+        actor_id=3,
+    )
+    assert cancel_res1_repeat.refunded_count == 1
+    assert cancel_res1_repeat.flagged_count == 1
+
+    # Report for Event 1:
+    # Gross must sum tickets over ISSUED (80,000) + USED (80,000) + REFUNDED (100,000) = 260,000
+    # Refunded = 100,000
+    # Net proceeds = 160,000
     rep1 = event_report(db_conn, 1)
-    assert rep1.sold == 2
-    assert rep1.attended == 1
-    assert rep1.no_shows == 1
-    assert rep1.gross == 160000
-    assert rep1.refunded == 0
+    assert rep1.gross == 260000
+    assert rep1.refunded == 100000
     assert rep1.net_proceeds == 160000
+    assert rep1.sold == 2  # Alice's 2 tickets (1 USED, 1 ISSUED)
+    assert rep1.attended == 1
 
     # Cancel Event 2 (free tickets become VOID)
-    cancel_res2 = cancel_event(db_conn, None, event_id=2, actor_id=3)
+    cancel_res2 = cancel_event(db_conn, {"TICKET": TICKET_PURPOSE_HANDLER}, event_id=2, actor_id=3)
     assert cancel_res2.void_count == 1
     t2 = db_conn.execute("SELECT status FROM tickets WHERE hold_id = ?;", (hold_free.id,)).fetchone()
     assert t2["status"] == "VOID"

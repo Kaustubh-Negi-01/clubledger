@@ -16,6 +16,7 @@ from clubledger.membership.service import (
     seed_plans,
     start_join,
 )
+import clubledger.membership.service as membership_service
 
 
 def mock_create_payment(
@@ -224,8 +225,9 @@ def test_dues_purpose_handler_wiring_and_refund(db_conn):
     assert exc.value.code == "REFUND_BLOCKED"
 
 
-def test_missing_payment_service_raises_dependency_blocker(db_conn):
-    # Without create_payment_fn, when genuine payment service is absent, raises DependencyBlockerError
+def test_missing_payment_service_raises_dependency_blocker(db_conn, monkeypatch):
+    # Explicitly simulate absence in isolated unit test per TURBO_B.txt
+    monkeypatch.setattr(membership_service, "_genuine_create_payment", None)
     with pytest.raises(DependencyBlockerError):
         start_join(
             db_conn,
@@ -234,3 +236,25 @@ def test_missing_payment_service_raises_dependency_blocker(db_conn):
             idempotency_key="blocker_key",
             create_payment_fn=None,
         )
+
+
+def test_start_join_with_genuine_payment_service(db_conn):
+    # Verify real dependency behavior now that A's payments module is integrated
+    payment = start_join(
+        db_conn,
+        user_id=1,
+        plan_id=1,
+        idempotency_key="genuine_dep_join_key",
+    )
+    assert payment.id is not None
+    assert payment.purpose == "DUES"
+    assert payment.ref_table == "memberships"
+
+
+def test_start_join_idempotency_different_parameters_conflict(db_conn):
+    start_join(db_conn, user_id=1, plan_id=1, idempotency_key="same_join_key")
+    with pytest.raises(DomainError) as exc:
+        # Changed plan_id with same actor/action/key
+        start_join(db_conn, user_id=1, plan_id=2, idempotency_key="same_join_key")
+    assert exc.value.code == "CONFLICT"
+    assert exc.value.http_status == 409

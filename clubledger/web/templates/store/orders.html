@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}My Merchandise Orders - ClubLedger{% endblock %}
+{% block header_title %}My Merchandise Orders{% endblock %}
+
+{% block content %}
+<section aria-labelledby="orders-heading">
+  <h2 id="orders-heading">Your Orders</h2>
+
+  {% if orders %}
+  <div class="orders-list">
+    {% for item in orders %}
+    <article class="order-card" aria-labelledby="order-title-{{ item.order.id }}">
+      <h3 id="order-title-{{ item.order.id }}">
+        Order #{{ item.order.id }} &mdash; <span class="order-status status-{{ item.order.status|lower }}">{{ item.order.status }}</span>
+      </h3>
+      <p class="order-meta">
+        <span>Total: <strong>₹{{ item.total_inr }}</strong></span> |
+        <span>Tier: {{ item.order.price_tier }}</span> |
+        <span>Placed: {{ item.order.created_at }}</span>
+        {% if item.order.picked_up_at %}
+        | <span>Picked Up: {{ item.order.picked_up_at }}</span>
+        {% endif %}
+      </p>
+
+      <table class="order-items-table" aria-label="Items for Order #{{ item.order.id }}">
+        <thead>
+          <tr>
+            <th scope="col">Product</th>
+            <th scope="col">Size</th>
+            <th scope="col">Qty</th>
+            <th scope="col">Unit Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in item.order_items %}
+          <tr>
+            <td>{{ line.product_name }}</td>
+            <td>{{ line.size }}</td>
+            <td>{{ line.qty }}</td>
+            <td>₹{{ "%.2f"|format(line.unit_price_paise / 100) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% if item.order.status in ['RESERVED', 'PAID'] %}
+      <div class="order-actions">
+        <form method="post" action="/store/orders/{{ item.order.id }}/cancel" onsubmit="return confirm('Are you sure you want to cancel this order?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="button-danger">Cancel Order</button>
+        </form>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p>You have not placed any merchandise orders yet.</p>
+  {% endif %}
+
+  <p class="back-link"><a href="/store">&larr; Continue Shopping</a></p>
+</section>
+{% endblock %}
