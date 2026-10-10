@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Merchandise Store - ClubLedger{% endblock %}
+{% block header_title %}Club Merchandise Store{% endblock %}
+
+{% block content %}
+<section aria-labelledby="catalog-heading">
+  <h2 id="catalog-heading">Official Merchandise</h2>
+
+  {% if products %}
+  <div class="product-grid">
+    {% for product in products %}
+    <article class="product-card" aria-labelledby="product-title-{{ product.id }}">
+      <h3 id="product-title-{{ product.id }}">
+        <a href="/store/{{ product.id }}">{{ product.name }}</a>
+      </h3>
+      <p class="product-description">{{ product.description }}</p>
+      <p class="product-price"><strong>₹{{ product.base_price_inr }}</strong></p>
+
+      <div class="product-variants">
+        <h4>Available Sizes:</h4>
+        <ul>
+          {% for variant in product.variants %}
+          <li>
+            <span>Size {{ variant.size }}:</span>
+            {% if variant.available_qty > 0 %}
+            <span class="stock-available">{{ variant.available_qty }} in stock</span>
+            {% else %}
+            <span class="stock-out">Out of stock</span>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="product-actions">
+        <a href="/store/{{ product.id }}" class="button">View &amp; Order</a>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p>No merchandise products are currently available.</p>
+  {% endif %}
+</section>
+{% endblock %}
