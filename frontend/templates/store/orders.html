@@ -20,9 +20,14 @@
                             {{ item.order.id }}
                             —
                             <span class="order-status status-{{ item.order.status|lower }}">
-                                {{ item.order.status }}
+                                {{ "PAYMENT FAILED" if item.order.payment_status == "FAILED" else "AWAITING PAYMENT" if item.order.status == "RESERVED" else item.order.status }}
                             </span>
                         </h3>
+                        {% if item.order.payment_status == "FAILED" %}
+                            <p>Payment failed. This purchase is not confirmed; its stock reservation has been released. You can try again from the club store.</p>
+                        {% elif item.order.status == "RESERVED" %}
+                            <p>Temporarily held until {{ item.order.expires_at }}. Your purchase is confirmed only after successful payment.</p>
+                        {% endif %}
                         <p class="order-meta">
                             <span>
                                 Total:

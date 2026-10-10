@@ -205,8 +205,8 @@ def get_user_orders(
     conn = connect(get_db_path())
     try:
         order_rows = conn.execute(
-            "SELECT id, status, expires_at, total_paise, price_tier, payment_id, picked_up_at, created_at "
-            "FROM merch_orders WHERE user_id = ? ORDER BY id DESC;",
+            "SELECT o.id, o.status, o.expires_at, o.total_paise, o.price_tier, o.payment_id, o.picked_up_at, o.created_at, p.status AS payment_status "
+            "FROM merch_orders o LEFT JOIN payments p ON p.id=o.payment_id WHERE o.user_id = ? ORDER BY o.id DESC;",
             (session.user_id,),
         ).fetchall()
 

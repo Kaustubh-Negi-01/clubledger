@@ -35,7 +35,7 @@ def get_join(
             "FROM membership_plans WHERE is_active = 1 ORDER BY dues_paise ASC;"
         ).fetchall()
         memberships = conn.execute(
-            "SELECT m.*,p.name AS plan_name FROM memberships m JOIN membership_plans p ON p.id=m.plan_id WHERE m.user_id=? ORDER BY m.starts_at DESC",
+            "SELECT m.*,p.name AS plan_name,pay.status AS payment_status FROM memberships m JOIN membership_plans p ON p.id=m.plan_id LEFT JOIN payments pay ON pay.id=m.payment_id WHERE m.user_id=? ORDER BY m.starts_at DESC",
             (session.user_id,),
         ).fetchall()
         idemp_key = idgen.generate_idempotency_key()
@@ -47,6 +47,11 @@ def get_join(
                 "csrf_token": session.csrf_token,
                 "plans": plans,
                 "memberships": memberships,
+                "has_active_membership": any(
+                    m["status"] == "ACTIVE"
+                    and m["starts_at"] <= clock.now() < m["expires_at"]
+                    for m in memberships
+                ),
                 "now": clock.now(),
                 "idempotency_key": idemp_key,
                 "error": None,

@@ -28,15 +28,19 @@
                             </small>
                         </div>
                         <span class="pill">
-                            {{ 'EXPIRED' if m.status=='ACTIVE' and m.expires_at<=now else m.status }}
+                            {{ 'PAYMENT FAILED' if m.payment_status=='FAILED' else 'AWAITING PAYMENT' if m.status=='PENDING' else 'EXPIRED' if m.status=='ACTIVE' and m.expires_at<=now else m.status }}
                         </span>
                     </div>
                 {% endfor %}
+                {% if has_active_membership %}
                 <p class="muted">
                     Renewal opens 30 days before your membership expires. Renewals start exactly when the current membership ends.
                 </p>
+                {% else %}
+                    <p>Your membership is not active. A failed payment gives no membership benefits. Choose a plan below to try again; an unpaid checkout can be resumed.</p>
+                {% endif %}
                 <a class="button secondary" href="/members/card">
-                    View current membership card
+                    {{ "View current membership card" if has_active_membership else "Check membership status" }}
                 </a>
             </article>
         {% endif %}

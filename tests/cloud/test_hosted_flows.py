@@ -37,3 +37,9 @@ from tests.e2e.test_complete_workspace import (
 from tests.e2e.test_payment_feedback import (
     test_ticket_checkout_keeps_real_booking_details_and_outcomes,
 )
+
+from tests.e2e.test_failed_purchase_retry import (
+    test_failed_membership_can_retry_without_false_membership,
+    test_failed_merch_releases_stock_once_and_retry_succeeds,
+    test_failed_ticket_releases_last_seat,
+)

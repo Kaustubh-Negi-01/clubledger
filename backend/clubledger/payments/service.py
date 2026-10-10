@@ -157,6 +157,32 @@ def create_payment(
     )
 
 
+def release_failed_purchase(conn, payment_row):
+    """Release an unpaid purchase atomically; retries retain their payment history."""
+    if payment_row["purpose"] == "MERCH" and payment_row["ref_table"] == "merch_orders":
+        order = conn.execute(
+            "SELECT id, user_id FROM merch_orders WHERE id=? AND payment_id=? AND status='RESERVED'",
+            (payment_row["ref_id"], payment_row["id"]),
+        ).fetchone()
+        if order:
+            from clubledger.store.service import cancel_order
+
+            cancel_order(conn, None, order["id"], order["user_id"])
+    elif payment_row["purpose"] == "DUES" and payment_row["ref_table"] == "memberships":
+        conn.execute(
+            "UPDATE memberships SET status='CANCELLED' WHERE id=? AND payment_id=? AND status='PENDING'",
+            (payment_row["ref_id"], payment_row["id"]),
+        )
+    elif (
+        payment_row["purpose"] == "TICKET"
+        and payment_row["ref_table"] == "ticket_holds"
+    ):
+        conn.execute(
+            "UPDATE ticket_holds SET status='RELEASED', released_at=? WHERE id=? AND status='HELD'",
+            (clock.now(), payment_row["ref_id"]),
+        )
+
+
 def handle_event(
     conn: sqlite3.Connection,
     handlers: Handlers,
@@ -322,6 +348,7 @@ def handle_event(
             conn.execute(
                 "UPDATE payments SET status = 'FAILED' WHERE id = ?;", (payment_id,)
             )
+            release_failed_purchase(conn, payment_row)
             outcome = "APPLIED"
             reason = None
         else:

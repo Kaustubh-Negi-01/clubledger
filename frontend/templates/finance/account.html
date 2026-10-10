@@ -15,9 +15,9 @@
     </p>
     <p>
         <strong>
-            Total Net Paise:
+            Net balance:
         </strong>
-        ₹{{ drilldown.total_paise / 100 }}
+        ₹{{ "%.2f"|format(drilldown.total_paise / 100) }}
     </p>
     <div class="table-wrap">
         <table>
@@ -73,13 +73,13 @@
                             {{ item.memo }}
                         </td>
                         <td>
-                            {{ item.debit_paise / 100 }}
+                            {{ "%.2f"|format(item.debit_paise / 100) }}
                         </td>
                         <td>
-                            {{ item.credit_paise / 100 }}
+                            {{ "%.2f"|format(item.credit_paise / 100) }}
                         </td>
                         <td>
-                            {{ item.net_paise / 100 }}
+                            {{ "%.2f"|format(item.net_paise / 100) }}
                         </td>
                         <td>
                             <a href="/finance/entries/{{ item.entry_id }}">

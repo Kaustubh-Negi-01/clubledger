@@ -132,13 +132,15 @@ def test_start_join_and_fulfill_dues_lifecycle(db_conn):
 
 
 def test_duplicate_membership_in_same_academic_year_blocked(db_conn):
-    start_join(
+    payment = start_join(
         db_conn,
         user_id=1,
         plan_id=1,
         idempotency_key="join_key_1",
         create_payment_fn=mock_create_payment,
     )
+
+    fulfill_dues(db_conn, payment, manual=False, now=clock.now())
 
     # Second attempt with distinct idempotency key in same year raises ALREADY_MEMBER
     with pytest.raises(DomainError) as exc_info:
@@ -150,7 +152,7 @@ def test_duplicate_membership_in_same_academic_year_blocked(db_conn):
             create_payment_fn=mock_create_payment,
         )
     assert exc_info.value.code == "ALREADY_MEMBER"
-    assert exc_info.value.http_status == 409
+    assert exc_info.value.http_status == 422
 
 
 def test_future_renewal_within_30_days_of_expiry(db_conn):

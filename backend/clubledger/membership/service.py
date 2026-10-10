@@ -124,7 +124,10 @@ def start_join(
     target_starts = curr_starts
     target_expires = curr_expires
 
-    has_current_live = any(r["membership_year"] == curr_label for r in live_rows)
+    has_current_live = any(
+        r["membership_year"] == curr_label and r["status"] == "ACTIVE"
+        for r in live_rows
+    )
     if has_current_live:
         # User already has live membership for current year. Check renewal window (now >= expires_at - 30 days)
         days_to_expiry = (curr_exp_dt - now_dt).total_seconds() / 86400.0
@@ -142,7 +145,10 @@ def start_join(
 
         # Renewal for next academic year
         next_label, next_starts, next_expires = clock.academic_year_bounds(curr_expires)
-        has_next_live = any(r["membership_year"] == next_label for r in live_rows)
+        has_next_live = any(
+            r["membership_year"] == next_label and r["status"] == "ACTIVE"
+            for r in live_rows
+        )
         if has_next_live:
             raise DomainError(
                 "ALREADY_MEMBER",
@@ -152,6 +158,47 @@ def start_join(
         target_year = next_label
         target_starts = curr_expires
         target_expires = next_expires
+
+    # A pending application is not an active membership. Resume its live checkout,
+    # or discard only the failed application before creating a fresh attempt.
+    pending = conn.execute(
+        "SELECT * FROM memberships WHERE user_id=? AND membership_year=? AND status='PENDING'",
+        (user_id, target_year),
+    ).fetchone()
+    if pending:
+        previous = conn.execute(
+            "SELECT id, public_id, user_id, purpose, ref_table, ref_id, amount_paise, status, fulfillment, term_id FROM payments WHERE id=?",
+            (pending["payment_id"],),
+        ).fetchone()
+        if previous and previous["status"] == "FAILED":
+            conn.execute(
+                "UPDATE memberships SET status='CANCELLED' WHERE id=? AND status='PENDING'",
+                (pending["id"],),
+            )
+        elif previous and previous["status"] in ("CREATED", "PENDING"):
+            if pending["plan_id"] != plan_id:
+                raise DomainError(
+                    "PAYMENT_PENDING",
+                    409,
+                    "Complete your existing membership checkout before choosing another plan.",
+                )
+            conn.execute(
+                "INSERT INTO idempotency_keys(actor_user_id,action,key,request_hash,result_ref,created_at) VALUES(?, 'membership.join', ?, ?, ?, ?)",
+                (
+                    user_id,
+                    idempotency_key,
+                    req_hash,
+                    f"payment:{previous['id']}",
+                    now_str,
+                ),
+            )
+            return Payment(**dict(previous))
+        else:
+            raise DomainError(
+                "PAYMENT_REVIEW",
+                409,
+                "Your previous membership payment needs review before you can try again.",
+            )
 
     # 5. Insert PENDING membership
     cur = conn.execute(

@@ -287,7 +287,7 @@ def test_get_user_orders_authenticated(app_client):
     res = app_client.get("/me/orders")
     assert res.status_code == 200
     assert "Your Orders" in res.text
-    assert "RESERVED" in res.text
+    assert "AWAITING PAYMENT" in res.text
     assert "Club Classic Hoodie" in res.text
     # Assert the visible cell value, not the HTML formatter's whitespace.
     from bs4 import BeautifulSoup
