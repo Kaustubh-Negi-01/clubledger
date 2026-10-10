@@ -68,12 +68,27 @@ BEGIN
   END;
 END;
 
--- 2. trg_entry_post_check:
--- BEFORE UPDATE OF status WHEN NEW.status = 'POSTED'
+-- 2. trg_entry_adjusts_term_check:
+-- BEFORE UPDATE OF adjusts_term_id ON journal_entries
+-- adjusts_term_id if set must reference a term with status='CLOSED'
+CREATE TRIGGER trg_entry_adjusts_term_check
+BEFORE UPDATE OF adjusts_term_id ON journal_entries
+FOR EACH ROW
+WHEN NEW.adjusts_term_id IS NOT NULL
+BEGIN
+  SELECT CASE
+    WHEN (SELECT status FROM terms WHERE id = NEW.adjusts_term_id) <> 'CLOSED' THEN
+      RAISE(ABORT, 'adjusts_term_id must reference a CLOSED term')
+  END;
+END;
+
+-- 3. trg_entry_post_check:
+-- BEFORE UPDATE OF status ON journal_entries WHEN NEW.status = 'POSTED'
 -- OLD.status must be 'DRAFT'
 -- line count >= 2
 -- Σdebit = Σcredit and > 0
 -- term_id must still be 'OPEN'
+-- adjusts_term_id if set must still reference a term with status='CLOSED'
 CREATE TRIGGER trg_entry_post_check
 BEFORE UPDATE OF status ON journal_entries
 FOR EACH ROW
@@ -84,6 +99,8 @@ BEGIN
       RAISE(ABORT, 'Only DRAFT entries can be transitioned to POSTED')
     WHEN (SELECT status FROM terms WHERE id = NEW.term_id) <> 'OPEN' THEN
       RAISE(ABORT, 'TERM_CLOSED')
+    WHEN NEW.adjusts_term_id IS NOT NULL AND (SELECT status FROM terms WHERE id = NEW.adjusts_term_id) <> 'CLOSED' THEN
+      RAISE(ABORT, 'adjusts_term_id must reference a CLOSED term')
     WHEN (SELECT COUNT(*) FROM journal_lines WHERE entry_id = NEW.id) < 2 THEN
       RAISE(ABORT, 'Posted entry must have at least 2 lines')
     WHEN (SELECT COALESCE(SUM(debit_paise), 0) FROM journal_lines WHERE entry_id = NEW.id) <>
@@ -94,7 +111,7 @@ BEGIN
   END;
 END;
 
--- 3. trg_entry_immutable_posted:
+-- 4. trg_entry_immutable_posted:
 -- BEFORE UPDATE or DELETE WHEN OLD.status = 'POSTED' -> always abort
 CREATE TRIGGER trg_entry_immutable_posted_update
 BEFORE UPDATE ON journal_entries
@@ -112,8 +129,8 @@ BEGIN
   SELECT RAISE(ABORT, 'POSTED journal entries cannot be deleted');
 END;
 
--- 4. trg_entry_term_fixed:
--- BEFORE UPDATE OF term_id, source_type, source_id, source_event, reverses_entry_id -> abort
+-- 5. trg_entry_term_fixed:
+-- BEFORE UPDATE OF term_id, source_type, source_id, source_event, reverses_entry_id ON journal_entries -> abort
 CREATE TRIGGER trg_entry_term_fixed
 BEFORE UPDATE OF term_id, source_type, source_id, source_event, reverses_entry_id ON journal_entries
 FOR EACH ROW
@@ -121,7 +138,7 @@ BEGIN
   SELECT RAISE(ABORT, 'Key entry fields cannot be modified');
 END;
 
--- 5. trg_line_insert_draft_only:
+-- 6. trg_line_insert_draft_only:
 -- parent entry must exist and be DRAFT
 CREATE TRIGGER trg_line_insert_draft_only
 BEFORE INSERT ON journal_lines
@@ -135,7 +152,7 @@ BEGIN
   END;
 END;
 
--- 6. trg_line_update_blocked:
+-- 7. trg_line_update_blocked:
 -- abort if old parent or new parent is POSTED; entry_id may never change
 CREATE TRIGGER trg_line_update_blocked
 BEFORE UPDATE ON journal_lines
@@ -151,7 +168,7 @@ BEGIN
   END;
 END;
 
--- 7. trg_line_delete_draft_only:
+-- 8. trg_line_delete_draft_only:
 -- abort if parent is POSTED
 CREATE TRIGGER trg_line_delete_draft_only
 BEFORE DELETE ON journal_lines

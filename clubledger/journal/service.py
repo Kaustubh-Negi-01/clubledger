@@ -11,36 +11,9 @@ from __future__ import annotations
 import sqlite3
 from typing import Any, Mapping, Sequence
 
-try:
-    from clubledger.core.types import Line
-except ImportError:
-    from dataclasses import dataclass
-
-    @dataclass(frozen=True)
-    class Line:  # type: ignore[no-redef]
-        account_code: str
-        debit_paise: int = 0
-        credit_paise: int = 0
-
-try:
-    from clubledger.core.errors import DomainError
-except ImportError:
-    class DomainError(Exception):  # type: ignore[no-redef]
-        def __init__(self, code: str, http_status: int = 400):
-            super().__init__(f"{code} ({http_status})")
-            self.code = code
-            self.http_status = http_status
-
-try:
-    from clubledger.core import clock
-except ImportError:
-    class _FallbackClock:
-        @staticmethod
-        def now() -> str:
-            from datetime import datetime, timezone
-            return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    clock = _FallbackClock()  # type: ignore[assignment]
+from clubledger.core.types import Line
+from clubledger.core.errors import DomainError
+from clubledger.core import clock
 
 
 def _get_account_id(conn: sqlite3.Connection, code: str) -> int:
@@ -57,6 +30,29 @@ def _get_open_term_id(conn: sqlite3.Connection) -> int:
     if not row:
         raise DomainError("TERM_CLOSED", 409)
     return int(row[0])
+
+
+def _validate_paise(val: Any) -> int:
+    """Validate paise is a strict non-negative integer, rejecting bool/float/strings."""
+    if isinstance(val, bool) or not isinstance(val, int) or val < 0:
+        raise DomainError("VALIDATION", 422)
+    return val
+
+
+def _extract_field(obj: Any, key: str) -> Any:
+    """Extract a field from dataclass, dict, sqlite3.Row, or generic object."""
+    if isinstance(obj, Mapping):
+        if key not in obj:
+            raise DomainError("VALIDATION", 422)
+        return obj[key]
+    if isinstance(obj, sqlite3.Row):
+        try:
+            return obj[key]
+        except (IndexError, KeyError):
+            raise DomainError("VALIDATION", 422)
+    if hasattr(obj, key):
+        return getattr(obj, key)
+    raise DomainError("VALIDATION", 422)
 
 
 def post_entry(
@@ -79,6 +75,25 @@ def post_entry(
       - If existing financial lines match requested lines, returns existing entry id.
       - If existing financial lines differ, raises DomainError("VALIDATION", 422).
     """
+    if not lines or len(lines) < 2:
+        raise DomainError("VALIDATION", 422)
+
+    # Validate each line strictly
+    validated_lines: list[tuple[str, int, int]] = []
+    for l in lines:
+        if not hasattr(l, "account_code") or not isinstance(l.account_code, str):
+            raise DomainError("VALIDATION", 422)
+        debit = _validate_paise(l.debit_paise)
+        credit = _validate_paise(l.credit_paise)
+        if (debit == 0) == (credit == 0):
+            raise DomainError("VALIDATION", 422)
+        validated_lines.append((l.account_code, debit, credit))
+
+    total_debit = sum(vl[1] for vl in validated_lines)
+    total_credit = sum(vl[2] for vl in validated_lines)
+    if total_debit != total_credit or total_debit <= 0:
+        raise DomainError("VALIDATION", 422)
+
     # 1. Check existing entry for source key idempotency
     cur = conn.execute(
         """
@@ -91,7 +106,6 @@ def post_entry(
     existing = cur.fetchone()
     if existing:
         existing_id = int(existing[0])
-        # Verify financial content matching
         lines_cur = conn.execute(
             """
             SELECT a.code, jl.debit_paise, jl.credit_paise
@@ -102,29 +116,13 @@ def post_entry(
             """,
             (existing_id,),
         )
-        existing_lines = [(r[0], int(r[1]), int(r[2])) for r in lines_cur.fetchall()]
-        requested_lines = [(line.account_code, int(line.debit_paise), int(line.credit_paise)) for line in lines]
+        existing_lines = [(r[0], r[1], r[2]) for r in lines_cur.fetchall()]
 
-        # Compare sorted by account_code, debit, credit
-        if sorted(existing_lines) != sorted(requested_lines):
+        # Compare sorted by account_code, debit, credit without loose coercion
+        if sorted(existing_lines) != sorted(validated_lines):
             raise DomainError("VALIDATION", 422)
 
         return existing_id
-
-    # 2. Basic validations prior to draft insert
-    if not lines or len(lines) < 2:
-        raise DomainError("VALIDATION", 422)
-
-    total_debit = sum(l.debit_paise for l in lines)
-    total_credit = sum(l.credit_paise for l in lines)
-    if total_debit != total_credit or total_debit <= 0:
-        raise DomainError("VALIDATION", 422)
-
-    for l in lines:
-        if l.debit_paise < 0 or l.credit_paise < 0:
-            raise DomainError("VALIDATION", 422)
-        if (l.debit_paise == 0) == (l.credit_paise == 0):
-            raise DomainError("VALIDATION", 422)
 
     now_ts = clock.now()
     created_at = now_ts
@@ -154,14 +152,14 @@ def post_entry(
         entry_id = int(insert_cur.lastrowid)
 
         # Insert lines
-        for l in lines:
-            acc_id = _get_account_id(conn, l.account_code)
+        for code, debit, credit in validated_lines:
+            acc_id = _get_account_id(conn, code)
             conn.execute(
                 """
                 INSERT INTO journal_lines (entry_id, account_id, debit_paise, credit_paise, created_at)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (entry_id, acc_id, l.debit_paise, l.credit_paise, created_at),
+                (entry_id, acc_id, debit, credit, created_at),
             )
 
         # Flip to POSTED
@@ -187,7 +185,7 @@ def reverse_entry(conn: sqlite3.Connection, entry_id: int, memo: str) -> int:
 
     Posts an exact mirror in the current OPEN term with lines swapped.
     Source event is '<original_source_event>_reversal'.
-    Reversing twice raises DomainError("REFUND_BLOCKED", 409) or returns existing reversal.
+    Reversing twice raises DomainError("REFUND_BLOCKED", 409).
     """
     cur = conn.execute(
         """
@@ -295,9 +293,13 @@ def post_payment_received(conn: sqlite3.Connection, payment: Any, *, fulfilled: 
           MERCH -> 4200
       - If unfulfilled: 2000 (Unfulfilled Payments Obligation)
     """
-    p_id = getattr(payment, "id", None) or payment["id"]
-    p_amount = getattr(payment, "amount_paise", None) or payment["amount_paise"]
-    p_purpose = getattr(payment, "purpose", None) or payment.get("purpose")
+    p_id = _extract_field(payment, "id")
+    p_amount = _validate_paise(_extract_field(payment, "amount_paise"))
+    p_purpose = _extract_field(payment, "purpose")
+
+    purpose_str = str(p_purpose).upper()
+    if purpose_str not in {"DUES", "TICKET", "MERCH"}:
+        raise DomainError("VALIDATION", 422)
 
     if fulfilled:
         purpose_account_map = {
@@ -305,7 +307,7 @@ def post_payment_received(conn: sqlite3.Connection, payment: Any, *, fulfilled: 
             "TICKET": "4100",
             "MERCH": "4200",
         }
-        credit_code = purpose_account_map.get(str(p_purpose).upper(), "2000")
+        credit_code = purpose_account_map[purpose_str]
     else:
         credit_code = "2000"
 
@@ -335,16 +337,20 @@ def post_payment_late_fulfilled(conn: sqlite3.Connection, payment: Any) -> int:
     Debit: 2000 Unfulfilled Obligation
     Credit: 4000 / 4100 / 4200 based on purpose
     """
-    p_id = getattr(payment, "id", None) or payment["id"]
-    p_amount = getattr(payment, "amount_paise", None) or payment["amount_paise"]
-    p_purpose = getattr(payment, "purpose", None) or payment.get("purpose")
+    p_id = _extract_field(payment, "id")
+    p_amount = _validate_paise(_extract_field(payment, "amount_paise"))
+    p_purpose = _extract_field(payment, "purpose")
+
+    purpose_str = str(p_purpose).upper()
+    if purpose_str not in {"DUES", "TICKET", "MERCH"}:
+        raise DomainError("VALIDATION", 422)
 
     purpose_account_map = {
         "DUES": "4000",
         "TICKET": "4100",
         "MERCH": "4200",
     }
-    credit_code = purpose_account_map.get(str(p_purpose).upper(), "4000")
+    credit_code = purpose_account_map[purpose_str]
 
     open_term_id = _get_open_term_id(conn)
     now_ts = clock.now()
@@ -374,9 +380,12 @@ def post_receipt_event(conn: sqlite3.Connection, event_row: Any) -> int | None:
       Credit: 2000 Unfulfilled Payments Obligation
     Otherwise None.
     """
-    e_id = getattr(event_row, "id", None) or event_row["id"]
-    e_amount = getattr(event_row, "amount_paise", None) or event_row["amount_paise"]
-    e_currency = getattr(event_row, "currency", None) or event_row["currency"]
+    e_id = _extract_field(event_row, "id")
+    raw_amount = _extract_field(event_row, "amount_paise")
+    if isinstance(raw_amount, bool) or not isinstance(raw_amount, int):
+        raise DomainError("VALIDATION", 422)
+    e_amount = raw_amount
+    e_currency = _extract_field(event_row, "currency")
 
     if e_currency != "INR" or e_amount <= 0:
         return None
@@ -407,12 +416,16 @@ def post_settlement(conn: sqlite3.Connection, source_type: str, source_id: int, 
     Debit: 1000 Cash on Hand/Bank
     Credit: 1100 Payment Clearing
     """
+    valid_amount = _validate_paise(amount_paise)
+    if valid_amount <= 0:
+        raise DomainError("VALIDATION", 422)
+
     open_term_id = _get_open_term_id(conn)
     now_ts = clock.now()
 
     lines = [
-        Line(account_code="1000", debit_paise=amount_paise, credit_paise=0),
-        Line(account_code="1100", debit_paise=0, credit_paise=amount_paise),
+        Line(account_code="1000", debit_paise=valid_amount, credit_paise=0),
+        Line(account_code="1100", debit_paise=0, credit_paise=valid_amount),
     ]
 
     return post_entry(
@@ -433,14 +446,26 @@ def post_expense_approved(conn: sqlite3.Connection, expense: Any) -> int:
     Debit: Category account (5000-5099)
     Credit: 2100 Reimbursements Payable
     """
-    exp_id = getattr(expense, "id", None) or expense["id"]
-    exp_amount = getattr(expense, "amount_paise", None) or expense["amount_paise"]
-    cat_code = getattr(expense, "category_code", None) or expense.get("category_code")
+    exp_id = _extract_field(expense, "id")
+    exp_amount = _validate_paise(_extract_field(expense, "amount_paise"))
+    if exp_amount <= 0:
+        raise DomainError("VALIDATION", 422)
+
+    try:
+        cat_code = _extract_field(expense, "category_code")
+    except DomainError:
+        cat_code = None
+
     if not cat_code:
-        cat_acc_id = getattr(expense, "category_account_id", None) or expense.get("category_account_id")
+        cat_acc_id = _extract_field(expense, "category_account_id")
         cur = conn.execute("SELECT code FROM accounts WHERE id = ?", (cat_acc_id,))
         row = cur.fetchone()
-        cat_code = row[0] if row else "5090"
+        if not row:
+            raise DomainError("VALIDATION", 422)
+        cat_code = row[0]
+
+    if not (cat_code.startswith("50") and len(cat_code) == 4):
+        raise DomainError("VALIDATION", 422)
 
     open_term_id = _get_open_term_id(conn)
     now_ts = clock.now()
@@ -468,8 +493,10 @@ def post_expense_paid(conn: sqlite3.Connection, expense: Any) -> int:
     Debit: 2100 Reimbursements Payable
     Credit: 1000 Cash on Hand/Bank
     """
-    exp_id = getattr(expense, "id", None) or expense["id"]
-    exp_amount = getattr(expense, "amount_paise", None) or expense["amount_paise"]
+    exp_id = _extract_field(expense, "id")
+    exp_amount = _validate_paise(_extract_field(expense, "amount_paise"))
+    if exp_amount <= 0:
+        raise DomainError("VALIDATION", 422)
 
     open_term_id = _get_open_term_id(conn)
     now_ts = clock.now()
