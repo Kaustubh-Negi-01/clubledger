@@ -71,7 +71,8 @@ def test_missing_results_file(tmp_path: Path):
 def test_stale_mismatched_results_rejected(tmp_path: Path):
     """Checker must reject test results from a different git commit."""
     req_file = Path("docs/REQUIREMENTS.md")
-    status_file = Path("tests/req_status.json")
+    status_file = tmp_path / "req_status.json"
+    status_file.write_text(json.dumps({rid: "planned" for rid in parse_requirements(req_file)}), encoding="utf-8")
 
     results_file = tmp_path / "results.json"
     results_file.write_text(
