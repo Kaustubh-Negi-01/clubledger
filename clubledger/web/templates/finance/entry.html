@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ drilldown.title }} - Skyline Student Association</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background: #f4f4f4; }
+    .card { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>{{ drilldown.title }}</h1>
+  <p><a href="/finance">← Back to Finance</a></p>
+
+  {% set entry = drilldown.items[0] %}
+  <div class="card">
+    <h2>Entry Information</h2>
+    <p><strong>Entry ID:</strong> {{ entry.entry_id }}</p>
+    <p><strong>Status:</strong> {{ entry.status }}</p>
+    <p><strong>Entry Date:</strong> {{ entry.entry_date }}</p>
+    <p><strong>Source:</strong> {{ entry.source_type }} #{{ entry.source_id }} ({{ entry.source_event }})</p>
+    <p><strong>Memo:</strong> {{ entry.memo }}</p>
+    <p><strong>Source Exists:</strong> {{ 'Yes' if entry.source_exists else 'NO (Missing)' }}</p>
+  </div>
+
+  <div class="card">
+    <h2>Lines</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Account Code</th>
+          <th>Account Name</th>
+          <th>Debit (₹)</th>
+          <th>Credit (₹)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in entry.lines %}
+        <tr>
+          <td>{{ line.account_code }}</td>
+          <td>{{ line.account_name }}</td>
+          <td>{{ line.debit_paise / 100 }}</td>
+          <td>{{ line.credit_paise / 100 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title }} - Skyline Student Association</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background: #f4f4f4; }
+    .card { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Finance & Treasury</h1>
+  <nav>
+    <a href="/finance">Cash Summary</a> |
+    <a href="/finance/integrity">Integrity Checks</a>
+  </nav>
+  <hr>
+  <div class="card">
+    <h2>Cash Summary</h2>
+    <p><strong>Cash on Hand (1000):</strong> ₹{{ cash_summary.cash_on_hand / 100 }}</p>
+    <p><strong>Payment Clearing (1100):</strong> ₹{{ cash_summary.in_clearing / 100 }}</p>
+    <p><strong>Unfulfilled Obligations (2000):</strong> ₹{{ cash_summary.unfulfilled_obligations / 100 }}</p>
+    <p><strong>Reimbursements Payable (2100):</strong> ₹{{ cash_summary.reimbursements_payable / 100 }}</p>
+  </div>
+
+  <div class="card">
+    <h2>Accounts Breakdown</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Debit (₹)</th>
+          <th>Credit (₹)</th>
+          <th>Net Balance (₹)</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in breakdown.items %}
+        <tr>
+          <td>{{ item.account_code }}</td>
+          <td>{{ item.account_name }}</td>
+          <td>{{ item.type }}</td>
+          <td>{{ item.debit_paise / 100 }}</td>
+          <td>{{ item.credit_paise / 100 }}</td>
+          <td>{{ item.net_paise / 100 }}</td>
+          <td><a href="/finance/accounts/{{ item.account_code }}">Drilldown</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
