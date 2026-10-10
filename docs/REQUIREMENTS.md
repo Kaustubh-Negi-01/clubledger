@@ -4,7 +4,7 @@ Every requirement has an ID. Every ID maps to at least one positive (`+`) and on
 
 ## Test conventions
 
-- **Scope count.** This file defines **108** requirement IDs (`req_coverage` prints the live count; if it differs from 108 this sentence is stale). Cut-line deferrals (BUILD_ORDER.md §5) are the only way an ID leaves the accepted scope, and each deferral must be recorded in `tests/req_status.json` with a reason.
+- **Scope count.** This file defines **110** requirement IDs (`req_coverage` prints the live count; if it differs from 110 this sentence is stale). Cut-line deferrals (BUILD_ORDER.md §5) are the only way an ID leaves the accepted scope, and each deferral must be recorded in `tests/req_status.json` with a reason.
 - **Markers.** `pytest.ini` (owned by D): `markers = req(id, kind): requirement ID from docs/REQUIREMENTS.md; kind is "pos" or "neg"`, `addopts = --strict-markers`. Each test carries e.g. `@pytest.mark.req("MEM-03", "pos")`. A test may carry several.
 - **Status file.** `tests/req_status.json` (D) maps every ID to `planned | implemented | deferred`. Owners flip an ID to `implemented` in the same PR that lands its tests and code.
 - **Checker.** `python -m tests.req_coverage --mode progress|final` (D):

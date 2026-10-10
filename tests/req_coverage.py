@@ -73,9 +73,7 @@ def check_coverage(
     total_scope = len(valid_ids)
     valid_id_set = set(valid_ids)
 
-    # Note scope count check
-    if total_scope != 108:
-        print(f"Notice: Live requirement count in {req_path} is {total_scope} (reference count was 108).")
+    # Total scope count is the live parsed inventory count
 
     status_data = load_req_status(status_path)
     test_results = load_test_results(results_path)
