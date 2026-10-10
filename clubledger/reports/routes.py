@@ -29,12 +29,15 @@ TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "web" / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
+from clubledger.core.errors import DomainError
+
+
 def _get_open_term_id(conn) -> int:
     cur = conn.execute("SELECT id FROM terms WHERE status = 'OPEN'")
     row = cur.fetchone()
     if row:
         return int(row[0])
-    return 1
+    raise DomainError("TERM_CLOSED", 409, "No active OPEN term found")
 
 
 @router.get("", response_class=HTMLResponse)

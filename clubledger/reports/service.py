@@ -557,9 +557,9 @@ def check_integrity(conn: sqlite3.Connection) -> dict[str, Any]:
         results["checks"]["unapplied_receipt_entries"] = {"status": "UNIMPLEMENTED"}
 
     # 5. Missing source document check for journal entries
-    cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='payments'")
-    has_payments = bool(cur.fetchone())
-
+    missing_sources = []
+    has_payments = bool(conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='payments'").fetchone())
+    # Check payment source entries
     if has_payments:
         missing_cur = conn.execute(
             """
@@ -569,18 +569,58 @@ def check_integrity(conn: sqlite3.Connection) -> dict[str, Any]:
             WHERE je.source_type = 'payment' AND p.id IS NULL
             """
         )
-        missing_sources = missing_cur.fetchall()
+        missing_sources.extend(missing_cur.fetchall())
+
+    # Check expense source entries
+    has_expenses = bool(conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='expenses'").fetchone())
+    if has_expenses:
+        missing_exp_cur = conn.execute(
+            """
+            SELECT je.id, je.source_type, je.source_id
+            FROM journal_entries je
+            LEFT JOIN expenses e ON je.source_type = 'expense' AND e.id = je.source_id
+            WHERE je.source_type = 'expense' AND e.id IS NULL
+            """
+        )
+        missing_sources.extend(missing_exp_cur.fetchall())
+
+    if has_payments or has_expenses:
         if missing_sources:
             results["passed"] = False
             results["checks"]["source_links_integrity"] = {
                 "status": "FAIL",
-                "detail": f"Journal entries with missing source payment: {missing_sources}",
+                "detail": f"Journal entries with missing source documents: {missing_sources}",
             }
             results["failures"].append("source_links_integrity")
         else:
             results["checks"]["source_links_integrity"] = {"status": "PASS"}
     else:
         results["checks"]["source_links_integrity"] = {"status": "UNIMPLEMENTED"}
+
+    # 5b. Every PAID expense has >= 1 receipt
+    if has_expenses:
+        unreceipted_cur = conn.execute(
+            """
+            SELECT e.id
+            FROM expenses e
+            LEFT JOIN receipts r ON r.expense_id = e.id
+            WHERE e.status = 'PAID'
+            GROUP BY e.id
+            HAVING COUNT(r.id) = 0
+            """
+        )
+        unreceipted = unreceipted_cur.fetchall()
+        if unreceipted:
+            results["passed"] = False
+            results["checks"]["paid_expenses_have_receipts"] = {
+                "status": "FAIL",
+                "detail": f"PAID expenses lacking receipts: {unreceipted}",
+            }
+            results["failures"].append("paid_expenses_have_receipts")
+        else:
+            results["checks"]["paid_expenses_have_receipts"] = {"status": "PASS"}
+    else:
+        results["checks"]["paid_expenses_have_receipts"] = {"status": "UNIMPLEMENTED"}
 
     # 6. Event reconciliation check (if events & tickets tables exist)
     cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tickets'")
