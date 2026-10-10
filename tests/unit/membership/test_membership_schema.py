@@ -6,22 +6,49 @@ from clubledger.core.db import apply_migrations, connect
 
 def get_migrated_db() -> sqlite3.Connection:
     conn = connect(":memory:")
-    applied = apply_migrations(conn)
+    # Controlled-prefix genuine-file subset 0001..0005 per TURBO_B.txt
+    applied = apply_migrations(
+        conn,
+        files=[
+            "0001_core.sql",
+            "0002_payments.sql",
+            "0003_membership.sql",
+            "0004_events.sql",
+            "0005_store.sql",
+        ],
+    )
     assert applied == [1, 2, 3, 4, 5], f"Expected migrations 1..5, got {applied}"
-    # Verify idempotent rerun
-    rerun = apply_migrations(conn)
+    # Verify idempotent rerun on controlled prefix
+    rerun = apply_migrations(
+        conn,
+        files=[
+            "0001_core.sql",
+            "0002_payments.sql",
+            "0003_membership.sql",
+            "0004_events.sql",
+            "0005_store.sql",
+        ],
+    )
     assert rerun == [], f"Expected empty rerun, got {rerun}"
     return conn
 
 
 def test_membership_clean_migration_and_idempotent_rerun():
-    conn = get_migrated_db()
-    # Verify schema_migrations has records for 0001 through 0005
+    conn = connect(":memory:")
+    # Integration test validates the actual contiguous discovered migration sequence including 0006+
+    applied = apply_migrations(conn)
+    assert len(applied) >= 5
+    assert applied[:5] == [1, 2, 3, 4, 5]
+    rerun = apply_migrations(conn)
+    assert rerun == [], f"Expected empty rerun, got {rerun}"
+
     rows = conn.execute(
         "SELECT number, filename FROM schema_migrations ORDER BY number ASC;"
     ).fetchall()
-    assert [r["number"] for r in rows] == [1, 2, 3, 4, 5]
-    assert rows[2]["filename"] == "0003_membership.sql"
+    numbers = [r["number"] for r in rows]
+    assert numbers[:5] == [1, 2, 3, 4, 5]
+    row_mem = [r for r in rows if r["number"] == 3][0]
+    assert row_mem["filename"] == "0003_membership.sql"
     conn.close()
 
 

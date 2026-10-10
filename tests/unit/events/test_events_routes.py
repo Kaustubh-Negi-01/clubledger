@@ -211,8 +211,9 @@ def test_hold_post_free_tickets_redirects_to_ticket(app_client):
     assert res.headers["location"].startswith("/tickets/")
 
 
-def test_hold_post_paid_tickets_with_missing_dependency(app_client):
-    # Without mock_create_payment injected and genuine payment service unavailable, returns 503
+def test_hold_post_paid_tickets_with_missing_dependency(app_client, monkeypatch):
+    # Explicitly simulate absence in isolated unit test per TURBO_B.txt
+    monkeypatch.setattr(events_service, "_genuine_create_payment", None)
     from clubledger.config import get_db_path
 
     conn = connect(get_db_path())
@@ -233,7 +234,29 @@ def test_hold_post_paid_tickets_with_missing_dependency(app_client):
     assert "DEPENDENCY_BLOCKER" in res.json()["code"]
 
 
-def test_hold_post_paid_tickets_with_payment_redirects_to_pay(app_client, monkeypatch):
+def test_hold_post_paid_tickets_with_genuine_payment_service(app_client):
+    # Now that A's payments module is integrated, genuine payment creation works without mocks
+    from clubledger.config import get_db_path
+
+    conn = connect(get_db_path())
+    raw_token, csrf_token = create_session(conn, 1)
+    conn.close()
+
+    app_client.cookies.set(COOKIE_SESSION, raw_token)
+    res = app_client.post(
+        "/events/1/hold",
+        data={
+            "qty": 2,
+            "idempotency_key": "paid_hold_key_genuine",
+            "csrf_token": csrf_token,
+        },
+        follow_redirects=False,
+    )
+    assert res.status_code == 303
+    assert res.headers["location"].startswith("/pay/")
+
+
+def test_hold_post_paid_tickets_with_mock_payment_redirects_to_pay(app_client, monkeypatch):
     monkeypatch.setattr(events_service, "_genuine_create_payment", mock_create_payment)
 
     from clubledger.config import get_db_path
@@ -341,13 +364,47 @@ def test_checkin_flow_and_permission(app_client):
     assert res_scan_1.status_code == 200
     assert "Admission Granted" in res_scan_1.text
 
-    # Second scan -> 200 with Ticket Already Used
+    # Second scan -> 409 Conflict with Ticket Already Used and timestamp preserved
     res_scan_2 = app_client.post(
         "/checkin/1/scan",
         data={"code": "TKT-SCAN-CODE", "csrf_token": csrf_staff},
     )
-    assert res_scan_2.status_code == 200
+    assert res_scan_2.status_code == 409
     assert "Ticket Already Used" in res_scan_2.text
+    assert "already used at" in res_scan_2.text.lower()
+
+
+def test_hold_post_idempotency_conflict_different_parameters(app_client):
+    from clubledger.config import get_db_path
+
+    conn = connect(get_db_path())
+    raw_token, csrf_token = create_session(conn, 1)
+    conn.close()
+
+    app_client.cookies.set(COOKIE_SESSION, raw_token)
+    res1 = app_client.post(
+        "/events/2/hold",
+        data={
+            "qty": 1,
+            "idempotency_key": "conflict_test_key",
+            "csrf_token": csrf_token,
+        },
+        follow_redirects=False,
+    )
+    assert res1.status_code == 303
+
+    # Replay with changed qty -> 409 CONFLICT
+    res2 = app_client.post(
+        "/events/2/hold",
+        data={
+            "qty": 2,
+            "idempotency_key": "conflict_test_key",
+            "csrf_token": csrf_token,
+        },
+        follow_redirects=False,
+    )
+    assert res2.status_code == 409
+    assert res2.json()["code"] == "CONFLICT"
 
 
 def test_admin_event_report_permission(app_client):

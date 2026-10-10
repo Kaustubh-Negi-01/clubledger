@@ -76,7 +76,6 @@ def _compute_ticket_price_fallback(
     now_str: str,
 ) -> tuple[int, Literal["MEMBER", "PUBLIC"]]:
     """Fallback price calculation adhering strictly to CONTRACT §2 if pricing module is not loaded."""
-    # Check active membership: status='ACTIVE' and starts_at <= at < expires_at
     mem = conn.execute(
         "SELECT m.id, p.ticket_discount_bps "
         "FROM memberships m "
@@ -134,29 +133,24 @@ def create_hold(
     if not user_row or not user_row["is_active"]:
         raise DomainError("NOT_FOUND", 404, "Active user not found")
 
-    # 2. Validate event
-    event_row = conn.execute("SELECT * FROM events WHERE id = ?;", (event_id,)).fetchone()
-    if not event_row:
-        raise DomainError("NOT_FOUND", 404, "Event not found")
-    if event_row["status"] != "ON_SALE":
-        raise DomainError("SOLD_OUT", 409, f"Event is {event_row['status']}, not on sale")
-
-    # 3. Validate quantity
-    max_order = event_row["max_per_order"]
-    if qty < 1 or qty > max_order:
-        raise DomainError("VALIDATION", 422, f"Quantity must be between 1 and {max_order}")
-
-    # 4. Check idempotency key
+    # 2. Check idempotency key before status or capacity checks to support clean replay
+    req_hash = hashlib.sha256(f"event_id={event_id}&qty={qty}".encode("utf-8")).hexdigest()
     existing_key = conn.execute(
-        "SELECT result_ref FROM idempotency_keys WHERE actor_user_id = ? AND action = 'ticket.hold' AND key = ?;",
+        "SELECT request_hash, result_ref FROM idempotency_keys WHERE actor_user_id = ? AND action = 'ticket.hold' AND key = ?;",
         (user_id, idempotency_key),
     ).fetchone()
     if existing_key:
+        if existing_key["request_hash"] != req_hash:
+            raise DomainError("CONFLICT", 409, "Idempotency key reused with different request parameters")
+
         ref = existing_key["result_ref"]
-        # Format: hold:{hold_id} or hold:{hold_id}:pay:{payment_id}
+        # Format: hold:{hold_id}:free or hold:{hold_id}:pay:{payment_id}
         parts = ref.split(":")
         hold_id = int(parts[1])
         h_row = conn.execute("SELECT * FROM ticket_holds WHERE id = ?;", (hold_id,)).fetchone()
+        if not h_row:
+            raise DomainError("NOT_FOUND", 404, "Previous hold not found")
+
         hold_obj = TicketHold(
             id=h_row["id"],
             event_id=h_row["event_id"],
@@ -185,6 +179,18 @@ def create_hold(
             )
             return (hold_obj, payment_obj)
         return (hold_obj, None)
+
+    # 3. Validate event
+    event_row = conn.execute("SELECT * FROM events WHERE id = ?;", (event_id,)).fetchone()
+    if not event_row:
+        raise DomainError("NOT_FOUND", 404, "Event not found")
+    if event_row["status"] != "ON_SALE":
+        raise DomainError("SOLD_OUT", 409, f"Event is {event_row['status']}, not on sale")
+
+    # 4. Validate quantity
+    max_order = event_row["max_per_order"]
+    if qty < 1 or qty > max_order:
+        raise DomainError("VALIDATION", 422, f"Quantity must be between 1 and {max_order}")
 
     # 5. Check capacity invariant inside transaction
     available = get_available_seats(conn, event_id, event_row["capacity"], now_str)
@@ -223,7 +229,6 @@ def create_hold(
                 (event_id, hold_id, seat, user_id, code, price_tier, now_str),
             )
 
-        req_hash = hashlib.sha256(f"qty={qty}".encode("utf-8")).hexdigest()
         conn.execute(
             "INSERT INTO idempotency_keys (actor_user_id, action, key, request_hash, result_ref, created_at) "
             "VALUES (?, 'ticket.hold', ?, ?, ?, ?);",
@@ -275,7 +280,6 @@ def create_hold(
         amount_paise=total_paise,
     )
 
-    req_hash = hashlib.sha256(f"qty={qty}".encode("utf-8")).hexdigest()
     conn.execute(
         "INSERT INTO idempotency_keys (actor_user_id, action, key, request_hash, result_ref, created_at) "
         "VALUES (?, 'ticket.hold', ?, ?, ?, ?);",
@@ -314,10 +318,40 @@ def fulfill_ticket_hold(
     if hold_row["status"] == "CONSUMED":
         return FulfillResult(outcome="FULFILLED")
 
-    if hold_row["status"] == "HELD" or (manual and hold_row["status"] == "EXPIRED"):
-        if manual and hold_row["status"] == "EXPIRED":
-            # Re-check capacity for late manual fulfillment
-            event_row = conn.execute("SELECT capacity FROM events WHERE id = ?;", (hold_row["event_id"],)).fetchone()
+    # Check event eligibility: event must exist and not be CANCELLED
+    event_row = conn.execute("SELECT status, capacity FROM events WHERE id = ?;", (hold_row["event_id"],)).fetchone()
+    if not event_row or event_row["status"] == "CANCELLED":
+        return FulfillResult(outcome="UNFULFILLABLE", reason="TARGET_NOT_LIVE")
+
+    if not manual:
+        # Normal callback: hold must be HELD and not expired
+        if hold_row["status"] != "HELD":
+            return FulfillResult(outcome="UNFULFILLABLE", reason="TARGET_NOT_LIVE")
+
+        if hold_row["expires_at"] <= now:
+            # Hold expired past TTL. Mark status EXPIRED and return UNFULFILLABLE without consuming capacity.
+            conn.execute(
+                "UPDATE ticket_holds SET status = 'EXPIRED' WHERE id = ? AND status = 'HELD';",
+                (hold_row["id"],),
+            )
+            return FulfillResult(outcome="UNFULFILLABLE", reason="TARGET_NOT_LIVE")
+
+        # Guarded status update: exactly 1 row affected
+        updated = conn.execute(
+            "UPDATE ticket_holds SET status = 'CONSUMED', consumed_at = ? "
+            "WHERE id = ? AND status = 'HELD';",
+            (now, hold_row["id"]),
+        ).rowcount
+        if updated != 1:
+            return FulfillResult(outcome="UNFULFILLABLE", reason="TARGET_NOT_LIVE")
+
+    else:
+        # Manual staff fulfillment: allowed for HELD or EXPIRED holds
+        if hold_row["status"] not in ("HELD", "EXPIRED"):
+            return FulfillResult(outcome="UNFULFILLABLE", reason="TARGET_NOT_LIVE")
+
+        # Capacity check: if hold is EXPIRED or has passed expires_at, re-check live capacity
+        if hold_row["status"] == "EXPIRED" or hold_row["expires_at"] <= now:
             avail = get_available_seats(conn, hold_row["event_id"], event_row["capacity"], now)
             if avail < hold_row["qty"]:
                 return FulfillResult(outcome="UNFULFILLABLE", reason="SOLD_OUT")
@@ -331,27 +365,25 @@ def fulfill_ticket_hold(
         if updated != 1:
             return FulfillResult(outcome="UNFULFILLABLE", reason="TARGET_NOT_LIVE")
 
-        # Issue N tickets with UNIQUE(hold_id, seat_index)
-        qty = hold_row["qty"]
-        unit_price = hold_row["unit_price_paise"]
-        tier = hold_row["price_tier"]
-        event_id = hold_row["event_id"]
-        user_id = hold_row["user_id"]
+    # Issue N tickets with UNIQUE(hold_id, seat_index)
+    qty = hold_row["qty"]
+    unit_price = hold_row["unit_price_paise"]
+    tier = hold_row["price_tier"]
+    event_id = hold_row["event_id"]
+    user_id = hold_row["user_id"]
 
-        for seat in range(1, qty + 1):
-            code_rand = base64.b32encode(secrets.token_bytes(10)).decode("ascii").rstrip("=")
-            code = f"TKT-{hold_row['id']:04d}-{seat}-{code_rand}"
-            conn.execute(
-                "INSERT INTO tickets ("
-                "  event_id, hold_id, seat_index, user_id, payment_id, code, "
-                "  price_paise, price_tier, status, used_at, used_by, created_at"
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ISSUED', NULL, NULL, ?);",
-                (event_id, hold_row["id"], seat, user_id, payment.id, code, unit_price, tier, now),
-            )
+    for seat in range(1, qty + 1):
+        code_rand = base64.b32encode(secrets.token_bytes(10)).decode("ascii").rstrip("=")
+        code = f"TKT-{hold_row['id']:04d}-{seat}-{code_rand}"
+        conn.execute(
+            "INSERT INTO tickets ("
+            "  event_id, hold_id, seat_index, user_id, payment_id, code, "
+            "  price_paise, price_tier, status, used_at, used_by, created_at"
+            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ISSUED', NULL, NULL, ?);",
+            (event_id, hold_row["id"], seat, user_id, payment.id, code, unit_price, tier, now),
+        )
 
-        return FulfillResult(outcome="FULFILLED")
-
-    return FulfillResult(outcome="UNFULFILLABLE", reason="TARGET_NOT_LIVE")
+    return FulfillResult(outcome="FULFILLED")
 
 
 def check_refundable_tickets(conn: sqlite3.Connection, payment: Payment) -> None:
@@ -433,15 +465,18 @@ def cancel_event(
     event_id: int,
     actor_id: int,
 ) -> CancelSummary:
-    """Cancel event: void free tickets, refund eligible paid tickets per CONTRACT §3.3."""
-    now_str = clock.now()
+    """Cancel event: void free tickets, refund eligible paid tickets through refund_payment per CONTRACT §3.3."""
     conn.execute("UPDATE events SET status = 'CANCELLED' WHERE id = ?;", (event_id,))
 
     # Free tickets become VOID
-    void_count = conn.execute(
+    conn.execute(
         "UPDATE tickets SET status = 'VOID' WHERE event_id = ? AND payment_id IS NULL AND status = 'ISSUED';",
         (event_id,),
-    ).rowcount
+    )
+    void_count = conn.execute(
+        "SELECT COUNT(*) AS c FROM tickets WHERE event_id = ? AND payment_id IS NULL AND status = 'VOID';",
+        (event_id,),
+    ).fetchone()["c"]
 
     # Identify payments for this event
     payments = conn.execute(
@@ -452,20 +487,45 @@ def cancel_event(
     refunded_count = 0
     flagged_count = 0
 
+    actual_handlers: dict[str, Any] = {}
+    if handlers is not None:
+        if isinstance(handlers, dict):
+            actual_handlers.update(handlers)
+        elif hasattr(handlers, "items"):
+            actual_handlers.update(dict(handlers))
+    if "TICKET" not in actual_handlers:
+        actual_handlers["TICKET"] = TICKET_PURPOSE_HANDLER
+
+    from clubledger.payments.service import refund_payment
+
     for p in payments:
         pid = p["payment_id"]
-        # Check if any ticket is USED
+        # Check if any ticket under this payment is USED
         has_used = conn.execute(
             "SELECT 1 FROM tickets WHERE payment_id = ? AND status = 'USED' LIMIT 1;", (pid,)
         ).fetchone()
         if has_used:
+            # Used tickets go to manual review; cannot refund payment
             flagged_count += 1
-        else:
-            conn.execute(
-                "UPDATE tickets SET status = 'REFUNDED' WHERE payment_id = ? AND status = 'ISSUED';",
-                (pid,),
-            )
+            continue
+
+        pay_row = conn.execute("SELECT status FROM payments WHERE id = ?;", (pid,)).fetchone()
+        if not pay_row:
+            continue
+
+        if pay_row["status"] == "REFUNDED":
+            # Idempotent repeat cancellation
             refunded_count += 1
+            continue
+
+        if pay_row["status"] == "SUCCEEDED":
+            try:
+                refund_payment(conn, actual_handlers, pid, actor_id)
+                refunded_count += 1
+            except Exception:
+                flagged_count += 1
+        else:
+            flagged_count += 1
 
     return CancelSummary(
         event_id=event_id,
@@ -489,8 +549,9 @@ def event_report(conn: sqlite3.Connection, event_id: int) -> EventReport:
 
     no_shows = max(0, sold - attended)
 
+    # Gross must sum tickets over ISSUED, USED, and REFUNDED per CONTRACT §11
     gross = conn.execute(
-        "SELECT COALESCE(SUM(price_paise), 0) AS g FROM tickets WHERE event_id = ? AND status IN ('ISSUED', 'USED');",
+        "SELECT COALESCE(SUM(price_paise), 0) AS g FROM tickets WHERE event_id = ? AND status IN ('ISSUED', 'USED', 'REFUNDED');",
         (event_id,),
     ).fetchone()["g"]
 
@@ -499,7 +560,7 @@ def event_report(conn: sqlite3.Connection, event_id: int) -> EventReport:
         (event_id,),
     ).fetchone()["r"]
 
-    net_proceeds = gross
+    net_proceeds = gross - refunded
 
     return EventReport(
         event_id=event_id,

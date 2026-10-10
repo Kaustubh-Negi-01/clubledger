@@ -294,6 +294,12 @@ def post_checkin_scan(
         if not event:
             raise DomainError("NOT_FOUND", 404, "Event not found")
         result = check_in(conn, event_id=event_id, code=code, staff_id=session.user_id)
+        status_code = 200
+        if result.status == "ALREADY_USED":
+            status_code = 409
+        elif result.status == "REJECTED":
+            status_code = 422
+
         return templates.TemplateResponse(
             request=request,
             name="events/checkin.html",
@@ -304,6 +310,7 @@ def post_checkin_scan(
                 "result": result,
                 "scanned_code": code,
             },
+            status_code=status_code,
         )
 
 

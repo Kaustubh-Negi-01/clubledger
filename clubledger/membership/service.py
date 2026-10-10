@@ -64,20 +64,15 @@ def start_join(
     if not user_row or not user_row["is_active"]:
         raise DomainError("NOT_FOUND", 404, "Active user not found")
 
-    # 2. Verify plan exists and is active
-    plan_row = conn.execute(
-        "SELECT id, code, name, dues_paise, is_active FROM membership_plans WHERE id = ?;",
-        (plan_id,),
-    ).fetchone()
-    if not plan_row or not plan_row["is_active"]:
-        raise DomainError("NOT_FOUND", 404, "Active membership plan not found")
-
-    # 3. Check browser idempotency key (§6)
+    # 2. Check browser idempotency key (§6)
+    req_hash = hashlib.sha256(f"plan_id={plan_id}".encode("utf-8")).hexdigest()
     existing_key = conn.execute(
-        "SELECT result_ref FROM idempotency_keys WHERE actor_user_id = ? AND action = 'membership.join' AND key = ?;",
+        "SELECT request_hash, result_ref FROM idempotency_keys WHERE actor_user_id = ? AND action = 'membership.join' AND key = ?;",
         (user_id, idempotency_key),
     ).fetchone()
     if existing_key:
+        if existing_key["request_hash"] != req_hash:
+            raise DomainError("CONFLICT", 409, "Idempotency key reused with different request parameters")
         ref = existing_key["result_ref"]
         if ref.startswith("payment:"):
             pay_id = int(ref.split(":", 1)[1])
@@ -99,6 +94,14 @@ def start_join(
                     fulfillment=pay_row["fulfillment"],
                     term_id=pay_row["term_id"],
                 )
+
+    # 3. Verify plan exists and is active
+    plan_row = conn.execute(
+        "SELECT id, code, name, dues_paise, is_active FROM membership_plans WHERE id = ?;",
+        (plan_id,),
+    ).fetchone()
+    if not plan_row or not plan_row["is_active"]:
+        raise DomainError("NOT_FOUND", 404, "Active membership plan not found")
 
     # 4. Determine academic year bounds and renewal eligibility (§1.3)
     curr_label, curr_starts, curr_expires = clock.academic_year_bounds(now_str)
