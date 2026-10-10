@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Financial Integrity - Skyline Student Association</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background: #f4f4f4; }
+    .status-pass { color: green; font-weight: bold; }
+    .status-fail { color: red; font-weight: bold; }
+    .status-unimplemented { color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Financial Integrity Checks</h1>
+  <p><a href="/finance">← Back to Finance</a></p>
+  <p><strong>Overall Status:</strong>
+    {% if integrity.passed %}
+      <span class="status-pass">PASS</span>
+    {% else %}
+      <span class="status-fail">FAIL</span>
+    {% endif %}
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>Status</th>
+        <th>Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for name, result in integrity.checks.items() %}
+      <tr>
+        <td>{{ name }}</td>
+        <td class="status-{{ result.status | lower }}">{{ result.status }}</td>
+        <td>{{ result.detail or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
