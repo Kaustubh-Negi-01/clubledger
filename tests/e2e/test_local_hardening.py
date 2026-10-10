@@ -212,9 +212,15 @@ def test_rendered_pages_have_titles_landmarks_headings_and_labels(
         assert html.title and html.title.get_text(strip=True), path
         assert html.html.get("lang") == "en", path
         assert len(html.find_all("h1")) == 1, path
-        assert html.find("main") and html.find(
-            "nav", attrs={"aria-label": "Main navigation"}
-        ), path
+        assert html.find("main", id="content"), path
+        if path in {"/auth/login", "/auth/register"}:
+            # Entry pages intentionally omit the workspace sidebar and navigation.
+            assert "auth-screen" in html.body.get("class", []), path
+            assert not html.select_one("aside.sidebar"), path
+            assert not html.find("nav", attrs={"aria-label": "Main navigation"}), path
+            assert html.h1.get_text(strip=True) == "Welcome to your club", path
+        else:
+            assert html.find("nav", attrs={"aria-label": "Main navigation"}), path
         ids = [element["id"] for element in html.find_all(id=True)]
         assert len(ids) == len(set(ids)), f"duplicate element IDs on {path}"
         for control in html.find_all(["input", "select", "textarea"]):
