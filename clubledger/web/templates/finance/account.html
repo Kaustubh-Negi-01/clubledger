@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ drilldown.title }} - Skyline Student Association</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background: #f4f4f4; }
+  </style>
+</head>
+<body>
+  <h1>{{ drilldown.title }}</h1>
+  <p><a href="/finance">← Back to Finance</a></p>
+  <p><strong>Total Net Paise:</strong> ₹{{ drilldown.total_paise / 100 }}</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Entry ID</th>
+        <th>Entry Date</th>
+        <th>Source</th>
+        <th>Event</th>
+        <th>Memo</th>
+        <th>Debit (₹)</th>
+        <th>Credit (₹)</th>
+        <th>Net (₹)</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in drilldown.items %}
+      <tr>
+        <td>{{ item.entry_id }}</td>
+        <td>{{ item.entry_date }}</td>
+        <td>{{ item.source_type }}:{{ item.source_id }}</td>
+        <td>{{ item.source_event }}</td>
+        <td>{{ item.memo }}</td>
+        <td>{{ item.debit_paise / 100 }}</td>
+        <td>{{ item.credit_paise / 100 }}</td>
+        <td>{{ item.net_paise / 100 }}</td>
+        <td><a href="/finance/entries/{{ item.entry_id }}">View Entry</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
