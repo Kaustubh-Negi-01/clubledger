@@ -48,3 +48,6 @@ htmlcov/
 *.sqlite3
 data/
 !data/.gitkeep
+
+# Package manager locks
+uv.lock

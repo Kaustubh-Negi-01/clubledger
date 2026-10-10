@@ -5,7 +5,12 @@ import sqlite3
 import pytest
 
 from clubledger.core.db import apply_migrations, connect
-from clubledger.core.errors import MigrationChecksumError, MigrationGapError
+from clubledger.core.errors import (
+    MigrationChecksumError,
+    MigrationDuplicateError,
+    MigrationError,
+    MigrationGapError,
+)
 
 
 def test_apply_migrations_genuine_0001_and_0002(tmp_path: Path) -> None:
@@ -107,6 +112,74 @@ def test_rejects_changed_applied_migration_checksum(tmp_path: Path) -> None:
         conn.close()
 
 
+def test_rejects_duplicate_migration_numbers(tmp_path: Path) -> None:
+    mig_dir = tmp_path / "migrations_dup"
+    mig_dir.mkdir()
+    (mig_dir / "0001_first.sql").write_text("CREATE TABLE a (id INTEGER PRIMARY KEY);", encoding="utf-8")
+    (mig_dir / "0001_second.sql").write_text("CREATE TABLE b (id INTEGER PRIMARY KEY);", encoding="utf-8")
+
+    db_file = tmp_path / "dup.db"
+    conn = connect(str(db_file))
+    try:
+        with pytest.raises(MigrationDuplicateError, match="Duplicate migration number 0001"):
+            apply_migrations(conn, migrations_dir=mig_dir)
+    finally:
+        conn.close()
+
+
+def test_rejects_missing_previously_applied_file(tmp_path: Path) -> None:
+    mig_dir = tmp_path / "migrations_missing_applied"
+    mig_dir.mkdir()
+    f1 = mig_dir / "0001_core.sql"
+    f1.write_text(
+        "CREATE TABLE t1 (id INTEGER PRIMARY KEY) STRICT;\n"
+        "CREATE TABLE schema_migrations (number INTEGER PRIMARY KEY, filename TEXT NOT NULL, checksum TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;\n",
+        encoding="utf-8",
+    )
+    (mig_dir / "0002_two.sql").write_text("CREATE TABLE t2 (id INTEGER PRIMARY KEY) STRICT;\n", encoding="utf-8")
+
+    db_file = tmp_path / "missing_applied.db"
+    conn = connect(str(db_file))
+    try:
+        applied = apply_migrations(conn, migrations_dir=mig_dir)
+        assert applied == [1, 2]
+
+        # Delete applied migration 0001_core.sql
+        f1.unlink()
+
+        # Normal CLI run must fail naming the missing applied file
+        with pytest.raises(MigrationError, match="Previously applied migration file missing: 0001_core.sql"):
+            apply_migrations(conn, migrations_dir=mig_dir)
+    finally:
+        conn.close()
+
+
+def test_rejects_renamed_previously_applied_file(tmp_path: Path) -> None:
+    mig_dir = tmp_path / "migrations_renamed_applied"
+    mig_dir.mkdir()
+    f1 = mig_dir / "0001_core.sql"
+    f1.write_text(
+        "CREATE TABLE t1 (id INTEGER PRIMARY KEY) STRICT;\n"
+        "CREATE TABLE schema_migrations (number INTEGER PRIMARY KEY, filename TEXT NOT NULL, checksum TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;\n",
+        encoding="utf-8",
+    )
+
+    db_file = tmp_path / "renamed_applied.db"
+    conn = connect(str(db_file))
+    try:
+        applied = apply_migrations(conn, migrations_dir=mig_dir)
+        assert applied == [1]
+
+        # Rename 0001_core.sql to 0001_renamed.sql
+        f1.rename(mig_dir / "0001_renamed.sql")
+
+        # Normal CLI run must fail naming the renamed file
+        with pytest.raises(MigrationError, match="Previously applied migration file renamed: expected 0001_core.sql"):
+            apply_migrations(conn, migrations_dir=mig_dir)
+    finally:
+        conn.close()
+
+
 def test_subset_fixture_mode(tmp_path: Path) -> None:
     # Test-only subset fixture can apply an explicit list of files
     db_file = tmp_path / "subset.db"
@@ -177,4 +250,15 @@ def test_cli_migrate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: py
     assert exit_code_second == 0
     captured_second = capsys.readouterr()
     assert "No pending migrations" in captured_second.out
+
+    # Test seed command
+    exit_code_seed = main(["seed", "--db", str(db_file)])
+    assert exit_code_seed == 0
+    captured_seed = capsys.readouterr()
+    assert "Seeded roles and permissions successfully." in captured_seed.out
+
+    # Second seed is idempotent
+    exit_code_seed_again = main(["seed", "--db", str(db_file)])
+    assert exit_code_seed_again == 0
+
 
