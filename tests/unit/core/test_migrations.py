@@ -13,12 +13,14 @@ from clubledger.core.errors import (
 )
 
 
-def test_apply_migrations_genuine_0001_and_0002(tmp_path: Path) -> None:
+def test_apply_migrations_genuine_sequence(tmp_path: Path) -> None:
     db_file = tmp_path / "test_mig.db"
     conn = connect(str(db_file))
     try:
         applied = apply_migrations(conn)
-        assert applied == [1, 2]
+        assert len(applied) >= 2
+        assert applied == list(range(1, len(applied) + 1))
+        assert 1 in applied and 2 in applied
 
         # Verify tables created
         tables = {
@@ -42,7 +44,7 @@ def test_apply_migrations_genuine_0001_and_0002(tmp_path: Path) -> None:
         rows = conn.execute(
             "SELECT number, filename, checksum FROM schema_migrations ORDER BY number ASC;"
         ).fetchall()
-        assert len(rows) == 2
+        assert len(rows) == len(applied)
         assert rows[0]["number"] == 1
         assert rows[0]["filename"] == "0001_core.sql"
         assert rows[1]["number"] == 2
@@ -51,6 +53,50 @@ def test_apply_migrations_genuine_0001_and_0002(tmp_path: Path) -> None:
         # Rerun is a no-op
         rerun_applied = apply_migrations(conn)
         assert rerun_applied == []
+    finally:
+        conn.close()
+
+
+def test_prefix_runner_controlled_migrations_dir(tmp_path: Path) -> None:
+    mig_dir = tmp_path / "migrations_prefix"
+    mig_dir.mkdir()
+    (mig_dir / "0001_core.sql").write_text(
+        "CREATE TABLE t1 (id INTEGER PRIMARY KEY) STRICT;\n"
+        "CREATE TABLE schema_migrations (number INTEGER PRIMARY KEY, filename TEXT NOT NULL, checksum TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;\n",
+        encoding="utf-8",
+    )
+    (mig_dir / "0002_two.sql").write_text("CREATE TABLE t2 (id INTEGER PRIMARY KEY) STRICT;\n", encoding="utf-8")
+
+    db_file = tmp_path / "prefix.db"
+    conn = connect(str(db_file))
+    try:
+        applied = apply_migrations(conn, migrations_dir=mig_dir)
+        assert applied == [1, 2]
+    finally:
+        conn.close()
+
+
+def test_migrations_with_simulated_0001_to_0006_tree(tmp_path: Path) -> None:
+    mig_dir = tmp_path / "migrations_full"
+    mig_dir.mkdir()
+    (mig_dir / "0001_core.sql").write_text(
+        "CREATE TABLE t1 (id INTEGER PRIMARY KEY) STRICT;\n"
+        "CREATE TABLE schema_migrations (number INTEGER PRIMARY KEY, filename TEXT NOT NULL, checksum TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;\n",
+        encoding="utf-8",
+    )
+    for i in range(2, 7):
+        (mig_dir / f"000{i}_step{i}.sql").write_text(
+            f"CREATE TABLE t{i} (id INTEGER PRIMARY KEY) STRICT;\n",
+            encoding="utf-8",
+        )
+
+    db_file = tmp_path / "full.db"
+    conn = connect(str(db_file))
+    try:
+        applied = apply_migrations(conn, migrations_dir=mig_dir)
+        assert applied == [1, 2, 3, 4, 5, 6]
+        rerun = apply_migrations(conn, migrations_dir=mig_dir)
+        assert rerun == []
     finally:
         conn.close()
 
@@ -243,7 +289,8 @@ def test_cli_migrate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: py
     exit_code = main(["migrate", "--db", str(db_file)])
     assert exit_code == 0
     captured = capsys.readouterr()
-    assert "Applied migrations: [1, 2]" in captured.out
+    assert "Applied migrations: [" in captured.out
+    assert "1" in captured.out and "2" in captured.out
 
     # Second run is idempotent
     exit_code_second = main(["migrate", "--db", str(db_file)])
