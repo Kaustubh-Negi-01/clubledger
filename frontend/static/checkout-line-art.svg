@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 650" fill="none">
+  <title>Fine campus arches and botanical line art</title>
+  <defs>
+    <!-- A soft offset echo adds depth without moving or obscuring the artwork. -->
+    <filter id="line-depth" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.4" result="soft-line"/>
+      <feOffset in="soft-line" dx="2" dy="3" result="offset-line"/>
+      <feFlood flood-color="#59452B" flood-opacity=".45" result="shadow-color"/>
+      <feComposite in="shadow-color" in2="offset-line" operator="in" result="shadow"/>
+      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#line-depth)" stroke="#846A43" stroke-width="1.2" opacity=".18" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M535 690V330a145 145 0 0 1 290 0v360"/>
+    <path d="M554 690V330a126 126 0 0 1 252 0v360"/>
+    <path d="M574 690V330a106 106 0 0 1 212 0v360"/>
+    <path d="M-25 590C82 537 120 415 90 277M75 461C31 450 10 415 17 388C54 391 78 426 75 461ZM91 401C123 382 142 345 132 316C103 325 87 366 91 401ZM91 338C58 323 44 292 53 269C80 278 96 311 91 338Z"/>
+    <path d="M-45 137C151 15 286 27 455 94S722 169 865 71"/>
+    <path d="M-45 149C151 27 286 39 455 106S722 181 865 83"/>
+    <path d="M-50 613C195 533 337 727 578 606S752 514 859 557"/>
+    <path d="m738 66 4 10 10 4-10 4-4 10-4-10-10-4 10-4Z"/>
+    <path d="m179 576 3 8 8 3-8 3-3 8-3-8-8-3 8-3Z"/>
+    <circle cx="752" cy="129" r="3"/>
+    <circle cx="118" cy="517" r="3"/>
+  </g>
+</svg>

@@ -1,0 +1,50 @@
+{# Ticket checkout uses the saved payment amount and owned reservation details.
+   The two buttons still submit to the existing signed simulator flow. #}
+<section class="ticket-checkout" aria-labelledby="checkout-event-title">
+    <div class="checkout-lights" aria-hidden="true">
+        <img src="/static/campus-string-lights.svg?v=festival-3" alt="" width="1000" height="170">
+    </div>
+    <div class="checkout-paper">
+        <p class="event-eyebrow">Ticket payment · Your next campus moment</p>
+        <h2 id="checkout-event-title">{{ ticket_event.title if ticket_event else 'Ticket payment' }}</h2>
+        {% if ticket_event %}
+            <dl class="event-facts checkout-event-facts">
+                <div><dt>Venue</dt><dd>{{ ticket_event.venue }}</dd></div>
+                <div><dt>Starts · India Standard Time</dt><dd>{{ ticket_event.display_date }} · {{ ticket_event.display_time }}</dd></div>
+                <div><dt>Your reservation</dt><dd>{{ ticket_event.qty }} {{ 'ticket' if ticket_event.qty == 1 else 'tickets' }} · General admission</dd></div>
+            </dl>
+        {% endif %}
+        <div class="checkout-amount">
+            <span>Amount</span>
+            <strong>₹{{ '%.2f'|format(payment.amount_paise/100) }}</strong>
+        </div>
+        <div class="checkout-payment-state">
+            <span>Status</span>
+            <span class="pass-status{% if payment.status in ['FAILED','REFUNDED'] %} inactive{% endif %}">{{ payment.status }}</span>
+        </div>
+        {% if payment.status in ['CREATED','PENDING'] %}
+            <form class="checkout-form" method="post" action="/pay/{{ payment.public_id }}/outcome">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="checkout-buttons">
+                    <button name="outcome" value="success">Simulate Payment Success</button>
+                    <button class="secondary" name="outcome" value="fail">Simulate Payment Failure</button>
+                </div>
+            </form>
+        {% else %}
+            <p class="checkout-completed">This payment has already been completed with status: <strong>{{ payment.status }}</strong>.</p>
+            {% if payment.status == 'SUCCEEDED' and payment.fulfillment != 'FULFILLED' %}
+                <p class="checkout-completed">Payment received, but your booking needs officer review. Your tickets have not been issued.</p>
+            {% endif %}
+            <a class="button" href="/dashboard">Return to overview</a>
+        {% endif %}
+        <div class="checkout-reference">
+            <span>Reference</span>
+            <code>{{ payment.public_id }}</code>
+        </div>
+    </div>
+    <aside class="checkout-stub" aria-labelledby="checkout-next-heading">
+        <h3 id="checkout-next-heading">What happens next</h3>
+        <p>Successful membership payments activate your membership. Ticket payments issue one ticket per seat. Merchandise payments reserve your items until staff pickup.</p>
+        <p class="checkout-expiry-note">Reservations expire. A payment that arrives too late is recorded as an unfulfilled obligation for review, rather than silently issuing unavailable items.</p>
+    </aside>
+</section>

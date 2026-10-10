@@ -1,0 +1,215 @@
+/* Checkout pairs warm string lights with parchment and a perforated stub.
+   This stylesheet only loads for TICKET payments. */
+.ticket-checkout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(210px, .9fr);
+    background: #f7e3c5;
+    border: 1px solid #d4cbb9;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 12px 35px #273c2814;
+}
+
+.checkout-paper {
+    min-width: 0;
+    padding: 32px;
+    background-color: #f7e3c5;
+    background-image: url('/static/checkout-line-art.svg?v=depth-5'), linear-gradient(125deg, #fbead0, #f2daba);
+    background-position: right bottom, center;
+    background-size: cover, cover;
+    background-repeat: no-repeat;
+}
+
+.checkout-paper h2 {
+    font-family: Georgia, serif;
+    font-size: clamp(29px, 3vw, 42px);
+    line-height: 1.08;
+    letter-spacing: -.035em;
+    color: #244b43;
+    margin: 0 0 25px;
+}
+
+.checkout-event-facts {
+    margin-bottom: 28px;
+}
+
+.checkout-amount,
+.checkout-payment-state {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 0;
+    border-top: 1px solid #c9ad88;
+    font-size: 13px;
+}
+
+.checkout-amount strong {
+    font-size: clamp(26px, 3vw, 35px);
+    color: #244b43;
+    letter-spacing: -.04em;
+}
+
+.checkout-buttons {
+    display: grid;
+    gap: 12px;
+    margin: 12px 0 24px;
+}
+
+.checkout-buttons button {
+    width: 100%;
+    background: #244b43;
+    border-color: #244b43;
+    font-size: 13px;
+    padding: 15px 12px;
+}
+
+.checkout-buttons button.secondary {
+    color: #713b30;
+    background: #faedd9;
+    border-color: #aa7964;
+}
+
+.checkout-buttons button:hover {
+    filter: brightness(.95);
+}
+
+.checkout-reference {
+    display: grid;
+    gap: 8px;
+    margin-top: 22px;
+    font-size: 11px;
+    color: #635545;
+}
+
+.checkout-reference code {
+    overflow-wrap: anywhere;
+    font-size: 11px;
+    background: #e7cfaa;
+}
+
+.checkout-stub {
+    padding: 30px 24px;
+    border-left: 2px dashed #b49b6c;
+    background-color: #f2dfb9;
+    background-image: url('/static/checkout-line-art.svg?v=depth-5');
+    background-size: auto 100%;
+    background-position: right bottom;
+    background-repeat: no-repeat;
+    min-width: 0;
+}
+
+.checkout-demo-label {
+    display: inline-block;
+    border: 1px solid #9a7853;
+    border-radius: 20px;
+    padding: 8px 10px;
+    color: #573f2a;
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.checkout-stub h3 {
+    color: #244b43;
+    font-family: Georgia, serif;
+    font-size: 27px;
+    line-height: 1.12;
+    margin: 25px 0 16px;
+}
+
+.checkout-stub p,
+.checkout-next-steps {
+    font-size: 12px;
+    line-height: 1.7;
+    color: #574735;
+}
+
+.checkout-stub h4 {
+    margin: 26px 0 12px;
+    font-size: 13px;
+}
+
+.checkout-next-steps {
+    padding-left: 18px;
+}
+
+.checkout-next-steps li {
+    padding-left: 4px;
+    margin-bottom: 12px;
+}
+
+.checkout-expiry-note {
+    border-top: 1px solid #c9ad88;
+    padding-top: 18px;
+    margin-top: 22px;
+}
+
+.checkout-completed {
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+@media (max-width: 1100px) {
+    .ticket-checkout {
+        grid-template-columns: minmax(260px, 1.6fr) minmax(180px, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .ticket-checkout {
+        grid-template-columns: 1fr;
+    }
+
+    .checkout-paper {
+        padding: 24px;
+    }
+
+    .checkout-stub {
+        border-left: 0;
+        border-top: 2px dashed #b49b6c;
+        padding: 24px;
+    }
+}
+
+
+
+.checkout-event-facts {
+    grid-template-columns: 1fr 1fr;
+}
+
+.checkout-event-facts>div:first-child {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 600px) {
+    .checkout-event-facts {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Decorative festival lights stay above both checkout columns. */
+.checkout-lights {
+    grid-column: 1 / -1;
+    height: 154px;
+    background: linear-gradient(125deg, #fbead0, #f2dfb9);
+    overflow: hidden;
+}
+
+.checkout-lights img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+}
+
+.checkout-paper,
+.checkout-stub {
+    padding-top: 16px;
+}
+
+@media (max-width: 600px) {
+    .checkout-lights {
+        height: 100px;
+    }
+}

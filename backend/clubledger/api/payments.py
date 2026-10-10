@@ -28,6 +28,7 @@ from clubledger.wiring import build_handlers
 router = APIRouter()
 
 from clubledger.paths import TEMPLATES_DIR
+from clubledger.presentation.event_display import event_date, event_time
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
@@ -72,12 +73,28 @@ def get_pay(
                 "SELECT * FROM payments WHERE id = ?;", (row["id"],)
             ).fetchone()
 
+        # Optional display details come from this user's actual ticket reservation.
+        # The saved payment remains the authoritative amount and status.
+        ticket_event = None
+        if row["purpose"] == "TICKET" and row["ref_table"] == "ticket_holds":
+            event_row = conn.execute(
+                "SELECT e.title, e.venue, e.starts_at, h.qty "
+                "FROM ticket_holds h JOIN events e ON e.id = h.event_id "
+                "WHERE h.id = ? AND h.user_id = ?",
+                (row["ref_id"], session.user_id),
+            ).fetchone()
+            if event_row:
+                ticket_event = dict(event_row)
+                ticket_event["display_date"] = event_date(event_row["starts_at"])
+                ticket_event["display_time"] = event_time(event_row["starts_at"])
+
         payment_dict = dict(row)
         return templates.TemplateResponse(
             request=request,
             name="payments/pay.html",
             context={
                 "payment": payment_dict,
+                "ticket_event": ticket_event,
                 "csrf_token": session.csrf_token,
                 "show_result": request.query_params.get("result") == "1"
                 and row["status"] not in {"CREATED", "PENDING"},

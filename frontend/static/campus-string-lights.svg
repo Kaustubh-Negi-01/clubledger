@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 170" fill="none">
+  <title>Overlapping strands of warm festival lights</title>
+  <defs>
+    <radialGradient id="warm-glow">
+      <stop stop-color="#FFD078" stop-opacity=".8"/>
+      <stop offset=".45" stop-color="#FFD078" stop-opacity=".3"/>
+      <stop offset="1" stop-color="#FFD078" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="bulb-glass" cx=".4" cy=".35" r=".7">
+      <stop stop-color="#FFFBE6"/>
+      <stop offset=".55" stop-color="#FFE5AA"/>
+      <stop offset="1" stop-color="#F1B958"/>
+    </radialGradient>
+    <g id="bulb">
+      <ellipse cy="20" rx="24" ry="28" fill="url(#warm-glow)"/>
+      <path d="M0 0v7" stroke="#393C32" stroke-width="2"/>
+      <path d="M-4 10C-5 15-11 19-10 27C-9 39 9 39 10 27C11 19 5 15 4 10Z" fill="url(#bulb-glass)"/>
+      <rect x="-4" y="5" width="8" height="7" rx="2" fill="#393C32"/>
+      <ellipse cx="-3" cy="25" rx="2.5" ry="4" fill="#FFFBEF" opacity=".85"/>
+    </g>
+  </defs>
+  <path d="M-15 -35Q500 118 1015 -12" stroke="#393C32" stroke-width="2"/>
+  <use href="#bulb" transform="translate(27.9 -22.7)"/>
+  <use href="#bulb" transform="translate(113.8 -1.2)"/>
+  <use href="#bulb" transform="translate(199.6 16.5)"/>
+  <use href="#bulb" transform="translate(285.4 30.2)"/>
+  <use href="#bulb" transform="translate(371.2 40.0)"/>
+  <use href="#bulb" transform="translate(457.1 45.8)"/>
+  <use href="#bulb" transform="translate(542.9 47.7)"/>
+  <use href="#bulb" transform="translate(628.8 45.7)"/>
+  <use href="#bulb" transform="translate(714.6 39.8)"/>
+  <use href="#bulb" transform="translate(800.4 29.9)"/>
+  <use href="#bulb" transform="translate(886.2 16.1)"/>
+  <use href="#bulb" transform="translate(972.1 -1.7)"/>
+  <path d="M-15 10Q500 155 1015 50" stroke="#393C32" stroke-width="2"/>
+  <use href="#bulb" transform="translate(21.8 20.0)"/>
+  <use href="#bulb" transform="translate(95.4 38.2)"/>
+  <use href="#bulb" transform="translate(168.9 53.8)"/>
+  <use href="#bulb" transform="translate(242.5 66.9)"/>
+  <use href="#bulb" transform="translate(316.1 77.4)"/>
+  <use href="#bulb" transform="translate(389.6 85.3)"/>
+  <use href="#bulb" transform="translate(463.2 90.8)"/>
+  <use href="#bulb" transform="translate(536.8 93.6)"/>
+  <use href="#bulb" transform="translate(610.4 93.9)"/>
+  <use href="#bulb" transform="translate(683.9 91.7)"/>
+  <use href="#bulb" transform="translate(757.5 86.9)"/>
+  <use href="#bulb" transform="translate(831.1 79.5)"/>
+  <use href="#bulb" transform="translate(904.6 69.6)"/>
+  <use href="#bulb" transform="translate(978.2 57.2)"/>
+  <path d="M-15 98Q500 125 1015 -38" stroke="#393C32" stroke-width="2"/>
+  <use href="#bulb" transform="translate(24.6 99.8)"/>
+  <use href="#bulb" transform="translate(103.8 101.7)"/>
+  <use href="#bulb" transform="translate(183.1 101.4)"/>
+  <use href="#bulb" transform="translate(262.3 98.8)"/>
+  <use href="#bulb" transform="translate(341.5 93.9)"/>
+  <use href="#bulb" transform="translate(420.8 86.8)"/>
+  <use href="#bulb" transform="translate(500.0 77.5)"/>
+  <use href="#bulb" transform="translate(579.2 65.9)"/>
+  <use href="#bulb" transform="translate(658.5 52.1)"/>
+  <use href="#bulb" transform="translate(737.7 36.0)"/>
+  <use href="#bulb" transform="translate(816.9 17.7)"/>
+  <use href="#bulb" transform="translate(896.2 -2.9)"/>
+  <use href="#bulb" transform="translate(975.4 -25.7)"/>
+</svg>

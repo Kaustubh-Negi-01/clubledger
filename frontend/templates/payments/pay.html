@@ -6,8 +6,17 @@
 {% block header_title %}
     Checkout
 {% endblock %}
+{% block head %}
+    {% if payment.purpose == 'TICKET' %}
+        <link rel="stylesheet" href="/static/event-tickets.css?v=campus-paper-2">
+        <link rel="stylesheet" href="/static/ticket-checkout.css?v=campus-depth-5">
+    {% endif %}
+{% endblock %}
 {% block content %}
     {% include "payments/result.html" %}
+    {% if payment.purpose == 'TICKET' %}
+        {% include "payments/ticket_checkout.html" %}
+    {% else %}
     <div class="grid-2">
         <section class="panel">
             <span class="pill">
@@ -81,4 +90,5 @@
             </p>
         </section>
     </div>
+    {% endif %}
 {% endblock %}

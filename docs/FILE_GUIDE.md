@@ -710,3 +710,13 @@ Each `tests/unit/<feature>/test_*.py` file checks the feature named by its folde
 - `frontend/static/campus-gala.svg`: original decorative campus-gathering illustration, separate from the real QR code.
 
 - `frontend/static/campus-paper-pattern.svg`: faint arch and botanical background for the parchment centre; decorative only.
+
+## Ticket checkout design
+
+- `frontend/templates/payments/ticket_checkout.html`: themed ticket checkout, using the saved payment and its owned reservation details; retains the existing CSRF and simulator form actions.
+- `frontend/static/ticket-checkout.css`: parchment checkout layout and responsive styles; loaded only for ticket payments.
+- `backend/clubledger/api/payments.py`: obtains optional event/quantity display information through the owned ticket hold; payment amount and status remain authoritative.
+
+- `frontend/static/campus-string-lights.svg`: original overlapping warm festival-light strands across the top of the ticket checkout; no animation or payment logic.
+
+- `frontend/static/checkout-line-art.svg`: decorative campus arches, flowing lines and botanicals with soft offset shadows behind checkout content.
