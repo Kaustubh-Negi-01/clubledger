@@ -18,51 +18,51 @@ def _get_journal_service(journal: Any = None) -> Any:
     try:
         from clubledger.journal import service as journal_svc
         return journal_svc
-    except ImportError:
-        return None
+    except ImportError as e:
+        raise DomainError("DEPENDENCY_BLOCKER", 500, f"Required journal service is missing: {e}") from e
 
 
-def _post_payment_received_safe(
+def _post_payment_received(
     conn: sqlite3.Connection, journal: Any, payment: Payment, *, fulfilled: bool
-) -> int | None:
+) -> int:
     svc = _get_journal_service(journal)
-    if svc and hasattr(svc, "post_payment_received"):
-        return svc.post_payment_received(conn, payment, fulfilled=fulfilled)
-    return None
+    if not hasattr(svc, "post_payment_received"):
+        raise DomainError("DEPENDENCY_BLOCKER", 500, "Journal service missing post_payment_received")
+    return svc.post_payment_received(conn, payment, fulfilled=fulfilled)
 
 
-def _post_payment_late_fulfilled_safe(
+def _post_payment_late_fulfilled(
     conn: sqlite3.Connection, journal: Any, payment: Payment
-) -> int | None:
+) -> int:
     svc = _get_journal_service(journal)
-    if svc and hasattr(svc, "post_payment_late_fulfilled"):
-        return svc.post_payment_late_fulfilled(conn, payment)
-    return None
+    if not hasattr(svc, "post_payment_late_fulfilled"):
+        raise DomainError("DEPENDENCY_BLOCKER", 500, "Journal service missing post_payment_late_fulfilled")
+    return svc.post_payment_late_fulfilled(conn, payment)
 
 
-def _post_receipt_event_safe(conn: sqlite3.Connection, journal: Any, event_row: Any) -> int | None:
+def _post_receipt_event(conn: sqlite3.Connection, journal: Any, event_row: Any) -> int | None:
     svc = _get_journal_service(journal)
-    if svc and hasattr(svc, "post_receipt_event"):
-        return svc.post_receipt_event(conn, event_row)
-    return None
+    if not hasattr(svc, "post_receipt_event"):
+        raise DomainError("DEPENDENCY_BLOCKER", 500, "Journal service missing post_receipt_event")
+    return svc.post_receipt_event(conn, event_row)
 
 
-def _post_settlement_safe(
+def _post_settlement(
     conn: sqlite3.Connection, journal: Any, source_type: str, source_id: int, amount_paise: int
-) -> int | None:
+) -> int:
     svc = _get_journal_service(journal)
-    if svc and hasattr(svc, "post_settlement"):
-        return svc.post_settlement(conn, source_type, source_id, amount_paise)
-    return None
+    if not hasattr(svc, "post_settlement"):
+        raise DomainError("DEPENDENCY_BLOCKER", 500, "Journal service missing post_settlement")
+    return svc.post_settlement(conn, source_type, source_id, amount_paise)
 
 
-def _reverse_all_for_source_safe(
+def _reverse_all_for_source(
     conn: sqlite3.Connection, journal: Any, source_type: str, source_id: int, memo: str
 ) -> list[int]:
     svc = _get_journal_service(journal)
-    if svc and hasattr(svc, "reverse_all_for_source"):
-        return svc.reverse_all_for_source(conn, source_type, source_id, memo)
-    return []
+    if not hasattr(svc, "reverse_all_for_source"):
+        raise DomainError("DEPENDENCY_BLOCKER", 500, "Journal service missing reverse_all_for_source")
+    return svc.reverse_all_for_source(conn, source_type, source_id, memo)
 
 
 def create_payment(
@@ -212,7 +212,7 @@ def handle_event(
             and isinstance(amount_paise, int)
             and amount_paise > 0
         ):
-            _post_receipt_event_safe(
+            _post_receipt_event(
                 conn, journal, {"id": event_row_id, "amount_paise": amount_paise, "currency": currency}
             )
         return EventOutcome(
@@ -267,7 +267,7 @@ def handle_event(
             and isinstance(amount_paise, int)
             and amount_paise > 0
         ):
-            _post_receipt_event_safe(
+            _post_receipt_event(
                 conn, journal, {"id": event_row_id, "amount_paise": amount_paise, "currency": currency}
             )
         return EventOutcome(
@@ -372,6 +372,20 @@ def handle_event(
     term_row = conn.execute("SELECT status FROM terms WHERE id = ?;", (payment.term_id,)).fetchone()
     is_closed_term = term_row and term_row["status"] == "CLOSED"
 
+    target_expired = False
+    if payment.ref_table == "ticket_holds":
+        hold = conn.execute(
+            "SELECT status, expires_at FROM ticket_holds WHERE id = ?;", (payment.ref_id,)
+        ).fetchone()
+        if hold and (hold["status"] == "EXPIRED" or hold["expires_at"] <= now):
+            target_expired = True
+    elif payment.ref_table == "merch_orders":
+        order = conn.execute(
+            "SELECT status, expires_at FROM merch_orders WHERE id = ?;", (payment.ref_id,)
+        ).fetchone()
+        if order and (order["status"] == "EXPIRED" or order["expires_at"] <= now):
+            target_expired = True
+
     if payment_row["status"] == "EXPIRED":
         outcome = "APPLIED_UNFULFILLED"
         reason = "LATE_AFTER_EXPIRED"
@@ -379,7 +393,7 @@ def handle_event(
             "UPDATE payments SET status = 'SUCCEEDED', fulfillment = 'UNFULFILLED', succeeded_at = ? WHERE id = ?;",
             (now, payment_id),
         )
-        _post_payment_received_safe(conn, journal, payment, fulfilled=False)
+        _post_payment_received(conn, journal, payment, fulfilled=False)
     elif payment_row["status"] == "FAILED":
         outcome = "APPLIED_UNFULFILLED"
         reason = "LATE_AFTER_FAILED"
@@ -387,7 +401,7 @@ def handle_event(
             "UPDATE payments SET status = 'SUCCEEDED', fulfillment = 'UNFULFILLED', succeeded_at = ? WHERE id = ?;",
             (now, payment_id),
         )
-        _post_payment_received_safe(conn, journal, payment, fulfilled=False)
+        _post_payment_received(conn, journal, payment, fulfilled=False)
     elif is_closed_term:
         outcome = "APPLIED_UNFULFILLED"
         reason = "CLOSED_TERM"
@@ -395,9 +409,17 @@ def handle_event(
             "UPDATE payments SET status = 'SUCCEEDED', fulfillment = 'UNFULFILLED', succeeded_at = ? WHERE id = ?;",
             (now, payment_id),
         )
-        _post_payment_received_safe(conn, journal, payment, fulfilled=False)
+        _post_payment_received(conn, journal, payment, fulfilled=False)
+    elif target_expired:
+        outcome = "APPLIED_UNFULFILLED"
+        reason = "LATE_AFTER_EXPIRED"
+        conn.execute(
+            "UPDATE payments SET status = 'SUCCEEDED', fulfillment = 'UNFULFILLED', succeeded_at = ? WHERE id = ?;",
+            (now, payment_id),
+        )
+        _post_payment_received(conn, journal, payment, fulfilled=False)
     else:
-        # Status is CREATED or PENDING, term is OPEN: Attempt fulfillment
+        # Status is CREATED or PENDING, term is OPEN, target is live: Attempt fulfillment
         handler = handlers.get(payment.purpose)
         if not handler:
             outcome = "APPLIED_UNFULFILLED"
@@ -406,7 +428,7 @@ def handle_event(
                 "UPDATE payments SET status = 'SUCCEEDED', fulfillment = 'UNFULFILLED', succeeded_at = ? WHERE id = ?;",
                 (now, payment_id),
             )
-            _post_payment_received_safe(conn, journal, payment, fulfilled=False)
+            _post_payment_received(conn, journal, payment, fulfilled=False)
         else:
             fulfill_res = handler.fulfill(conn, payment, manual=False, now=now)
             if fulfill_res.outcome == "FULFILLED":
@@ -416,7 +438,7 @@ def handle_event(
                     "UPDATE payments SET status = 'SUCCEEDED', fulfillment = 'FULFILLED', succeeded_at = ? WHERE id = ?;",
                     (now, payment_id),
                 )
-                _post_payment_received_safe(conn, journal, payment, fulfilled=True)
+                _post_payment_received(conn, journal, payment, fulfilled=True)
             else:
                 outcome = "APPLIED_UNFULFILLED"
                 reason = fulfill_res.reason or "UNFULFILLABLE"
@@ -424,7 +446,7 @@ def handle_event(
                     "UPDATE payments SET status = 'SUCCEEDED', fulfillment = 'UNFULFILLED', succeeded_at = ? WHERE id = ?;",
                     (now, payment_id),
                 )
-                _post_payment_received_safe(conn, journal, payment, fulfilled=False)
+                _post_payment_received(conn, journal, payment, fulfilled=False)
 
     cur = conn.execute(
         """
@@ -493,7 +515,7 @@ def refund_payment(
 
     if payment_row["fulfillment"] == "UNFULFILLED":
         # Always eligible; no ticket/membership state to check
-        _reverse_all_for_source_safe(
+        _reverse_all_for_source(
             conn, journal, "payment", payment_id, memo=f"Refund unfulfilled payment {payment_id}"
         )
         conn.execute(
@@ -509,7 +531,7 @@ def refund_payment(
         handler.check_refundable(conn, payment)  # may raise DomainError("REFUND_BLOCKED", 409)
         handler.apply_refund(conn, payment, now)
 
-        _reverse_all_for_source_safe(
+        _reverse_all_for_source(
             conn, journal, "payment", payment_id, memo=f"Refund payment {payment_id}"
         )
         conn.execute(
@@ -572,7 +594,7 @@ def resolve_unfulfilled(
             "UPDATE payments SET fulfillment = 'FULFILLED' WHERE id = ?;",
             (payment_id,),
         )
-        _post_payment_late_fulfilled_safe(conn, journal, payment)
+        _post_payment_late_fulfilled(conn, journal, payment)
         return
 
     raise DomainError("VALIDATION", 422, f"Unknown action: {action}")
@@ -601,7 +623,8 @@ def resolve_receipt(
         raise DomainError("VALIDATION", 422, "Dismissal requires an explanatory note")
 
     now = clock.now()
-    _reverse_all_for_source_safe(
+    resolution_val = "REFUNDED" if action == "REFUND" else "DISMISSED"
+    _reverse_all_for_source(
         conn, journal, "payment_event", event_row_id, memo=f"Resolve receipt ({action}): {note.strip()}"
     )
 
@@ -611,7 +634,7 @@ def resolve_receipt(
         SET resolution = ?, resolved_by = ?, resolved_at = ?, resolution_note = ?
         WHERE id = ?;
         """,
-        (action, actor_id, now, note.strip(), event_row_id),
+        (resolution_val, actor_id, now, note.strip(), event_row_id),
     )
 
 
@@ -634,7 +657,7 @@ def settle_payments(conn: sqlite3.Connection, as_of: str, journal: Any = None) -
     ).fetchall()
 
     for p in payments:
-        _post_settlement_safe(conn, journal, "payment", p["id"], p["amount_paise"])
+        _post_settlement(conn, journal, "payment", p["id"], p["amount_paise"])
         conn.execute("UPDATE payments SET settled_at = ? WHERE id = ?;", (as_of, p["id"]))
         count += 1
 
@@ -653,7 +676,7 @@ def settle_payments(conn: sqlite3.Connection, as_of: str, journal: Any = None) -
     ).fetchall()
 
     for e in events:
-        _post_settlement_safe(conn, journal, "payment_event", e["id"], e["amount_paise"])
+        _post_settlement(conn, journal, "payment_event", e["id"], e["amount_paise"])
         conn.execute("UPDATE payment_events SET settled_at = ? WHERE id = ?;", (as_of, e["id"]))
         count += 1
 
