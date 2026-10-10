@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500" fill="none">
+  <title>Original campus gathering illustration</title>
+  <rect width="600" height="500" fill="#CF6754"/>
+  <circle cx="310" cy="224" r="167" fill="#F1C27B"/>
+  <path d="M-20 80Q290 240 625 60" stroke="#743D37" stroke-width="3"/>
+  <g fill="#FFF0D3">
+    <path d="M48 113l5 22h-13l3-24zm78 33 5 22h-13l3-24zm91 21 5 22h-13l3-24zm97 5 5 22h-13l3-24zm101-23 5 22h-13l3-24zm100-38 5 22h-13l3-24z"/>
+    <path d="m94 54 5 12 12 5-12 5-5 12-5-12-12-5 12-5zm422 142 5 12 12 5-12 5-5 12-5-12-12-5 12-5zm-94-125 4 9 9 4-9 4-4 9-4-9-9-4 9-4z"/>
+  </g>
+  <path d="M116 376h383v19H116z" fill="#703D37"/>
+  <path d="M165 376V258a145 145 0 0 1 290 0v118" fill="#244B43"/>
+  <path d="M187 376V258a123 123 0 0 1 246 0v118" fill="#F7DEAA"/>
+  <path d="M218 376V264a91 91 0 0 1 182 0v112" fill="#CF6754"/>
+  <path d="M310 174v202m-86-66h172" stroke="#F7DEAA" stroke-width="3"/>
+  <path d="M188 259q47 57 31 117m212-117q-47 57-31 117" stroke="#244B43" stroke-width="4"/>
+  <path d="M160 395h304v16H160zm-23 16h350v17H137z" fill="#F1C27B"/>
+  <g fill="#244B43">
+    <path d="M88 450q-80-137 16-160-7 67-16 160zM87 450q-39-150-74-119 3 81 74 119zM92 450q41-138 77-95-11 57-77 95z"/>
+    <path d="M521 450q-41-157 35-163-2 102-35 163zM523 450q-5-115-58-101-2 76 58 101zM526 450q63-123 88-75-19 67-88 75z"/>
+  </g>
+  <path d="M69 500v-50h49v50m389 0v-50h49v50" fill="#F1C27B"/>
+  <g stroke="#F7DEAA" stroke-width="2" opacity=".55">
+    <path d="M31 244v23m-11-11h23m513-25v23m-11-11h23M155 32v18m-9-9h18m315 405v18m-9-9h18"/>
+    <circle cx="45" cy="38" r="14"/><circle cx="556" cy="46" r="22"/>
+  </g>
+</svg>

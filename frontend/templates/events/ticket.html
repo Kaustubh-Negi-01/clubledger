@@ -1,111 +1,61 @@
 {% extends "base.html" %}
-{# Events ticket: presentation only. Values are supplied by the backend; forms submit to API routes. #}
-{% block title %}
-    Ticket
-    {{ ticket.code }}
-    - ClubLedger
-{% endblock %}
-{% block header_title %}
-    Event Ticket
+{# Only the real backend-generated QR and saved ticket code grant admission. #}
+{% block title %}Ticket {{ ticket.code }} - ClubLedger{% endblock %}
+{% block header_title %}Event Ticket{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/static/event-tickets.css?v=campus-paper-2">
 {% endblock %}
 {% block content %}
-    <section aria-labelledby="ticket-heading">
-        <h2 id="ticket-heading">
-            Digital Admission Pass
-        </h2>
-        <article class="ticket-card events-ticket-layout-1">
-            <header>
-                <h3>
-                    {{ ticket.event_title }}
-                </h3>
-                <p>
-                    <strong>
-                        Venue:
-                    </strong>
-                    {{ ticket.event_venue }}
-                </p>
-                <p>
-                    <strong>
-                        Date &amp; Time:
-                    </strong>
-                    <time datetime="{{ ticket.event_starts_at }}">
-                        {{ ticket.event_starts_at }}
-                    </time>
-                </p>
-                <p>
-                    <strong>
-                        Seat / Entry #:
-                    </strong>
-                    Seat
-                    {{ ticket.seat_index }}
-                </p>
-                <p>
-                    <strong>
-                        Attendee:
-                    </strong>
-                    {{ ticket.user_name }}
-                </p>
-                <p>
-                    <strong>
-                        Status:
-                    </strong>
-                    <span class="badge badge-status">
-                        {{ ticket.status }}
-                    </span>
-                </p>
-            </header>
-            <div class="ticket-code-display events-ticket-layout-2">
+    <section class="ticket-page" aria-labelledby="ticket-heading">
+        <h2 id="ticket-heading">Digital Admission Pass</h2>
+        {% if ticket.status == 'ISSUED' %}
+            <p class="event-intro">Your place is on this pass. Present the QR or admission code to staff at the entrance.</p>
+        {% else %}
+            <p class="event-intro">This is your saved ticket record. Check the admission status before using this pass.</p>
+        {% endif %}
+        <article class="admission-pass" aria-labelledby="pass-event-title">
+            <div class="event-art" aria-hidden="true">
+    <span class="event-art-label">ClubLedger · Campus edition</span>
+    <img src="/static/campus-gala.svg" alt="" width="600" height="500">
+</div>
+            <div class="pass-main">
+                <p class="event-eyebrow">ClubLedger · One attendee</p>
+                <h3 id="pass-event-title">{{ ticket.event_title }}</h3>
+                <dl class="event-facts">
+                    <div class="pass-venue"><dt>Venue</dt><dd>{{ ticket.event_venue }}</dd></div>
+                    <div><dt>Date</dt><dd><time datetime="{{ ticket.event_starts_at }}">{{ ticket.event_starts_at|event_date }}</time></dd></div>
+                    <div><dt>Starts</dt><dd>{{ ticket.event_starts_at|event_time }}</dd></div>
+                    <div><dt>Attendee</dt><dd>{{ ticket.user_name }}</dd></div>
+                    <div><dt>Entry in this booking</dt><dd>{{ ticket.seat_index }} · General admission</dd></div>
+                    <div><dt>Price</dt><dd>₹{{ price_inr }} · {{ ticket.price_tier }}</dd></div>
+                </dl>
+                <p class="pass-smallprint">Issued {{ ticket.created_at|event_date }} · {{ ticket.created_at|event_time }}. This is an admission pass, not an assigned auditorium seat.</p>
+                {% if ticket.used_at %}
+                    <p class="pass-smallprint" role="status">Checked in at: {{ ticket.used_at|event_date }} · {{ ticket.used_at|event_time }}</p>
+                {% endif %}
+            </div>
+            <div class="pass-stub">
+                <p class="event-eyebrow">Admission status</p>
+                <span class="pass-status{% if ticket.status != 'ISSUED' %} inactive{% endif %}">{{ ticket.status }}</span>
                 {% if qr_data %}
-                    <div class="qr-container events-ticket-layout-3">
-                        <img src="{{ qr_data }}"
-                        alt="QR Code for admission code {{ ticket.code }}"
-                        width="200"
-                        height="200"
-                        class="events-ticket-layout-4">
+                    <div class="qr-container">
+                        <img src="{{ qr_data }}" alt="QR Code for admission code {{ ticket.code }}" width="168" height="168">
                     </div>
                 {% endif %}
-                <div class="manual-code-section">
-                    <label for="admission-code"
-                    class="events-ticket-layout-5">
-                        Admission Code:
-                    </label>
-                    <code id="admission-code"
-                    class="events-ticket-layout-6">
-                        {{ ticket.code }}
-                    </code>
-                    <p class="events-ticket-layout-7">
-                        Present this code or QR at the entrance door check-in scanner.
-                    </p>
-                </div>
-            </div>
-            <footer>
-                <p>
-                    <small>
-                        Price: ₹{{ price_inr }}
-                        (
-                        {{ ticket.price_tier }}
-                        ) • Issued at:
-                        {{ ticket.created_at }}
-                    </small>
-                </p>
-                {% if ticket.used_at %}
-                    <p role="alert">
-                        <small>
-                            <strong>
-                                Checked in at:
-                            </strong>
-                            {{ ticket.used_at }}
-                        </small>
-                    </p>
+                <small>Admission Code</small>
+                <code class="pass-code" id="admission-code">{{ ticket.code }}</code>
+                {% if ticket.status == 'ISSUED' %}
+                    <small>Present this code or QR at the entrance door check-in scanner. Valid for one admission.</small>
+                {% elif ticket.status == 'USED' %}
+                    <small>Already checked in. This pass cannot be used again.</small>
+                {% else %}
+                    <small>This pass is not valid for admission.</small>
                 {% endif %}
-            </footer>
+            </div>
         </article>
-        <nav aria-label="Ticket navigation">
-            <p>
-                <a href="/events">
-                    ← Back to Events
-                </a>
-            </p>
+        <nav class="pass-actions" aria-label="Ticket navigation">
+            <button class="button" type="button" data-print-ticket>Print / Save PDF</button>
+            <a href="/events">← Back to Events</a>
         </nav>
     </section>
 {% endblock %}

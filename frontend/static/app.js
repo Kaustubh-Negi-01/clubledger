@@ -86,3 +86,8 @@ document.addEventListener('click', (event) => {
         history.back();
     }
 });
+
+// Print the owned admission pass through the browser's print/save-PDF dialog.
+document.addEventListener('click', (event) => {
+    if (event.target.closest('[data-print-ticket]')) window.print();
+});

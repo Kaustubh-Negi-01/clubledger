@@ -37,6 +37,12 @@ from clubledger.paths import TEMPLATES_DIR
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
+# Formatting only: keep stored UTC times and all booking rules unchanged.
+from clubledger.presentation.event_display import event_date, event_time
+
+templates.env.filters["event_date"] = event_date
+templates.env.filters["event_time"] = event_time
+
 
 def get_optional_session(request: Request) -> Session | None:
     """Resolve session if present, otherwise return None for public routes."""

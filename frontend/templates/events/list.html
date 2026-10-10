@@ -1,90 +1,56 @@
 {% extends "base.html" %}
-{# Events list: presentation only. Values are supplied by the backend; forms submit to API routes. #}
-{% block title %}
-    Events - ClubLedger
-{% endblock %}
-{% block header_title %}
-    Events & Ticketing
+{# Booking cards display live event data; the illustration is decorative. #}
+{% block title %}Events - ClubLedger{% endblock %}
+{% block header_title %}Events & Ticketing{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/static/event-tickets.css?v=campus-paper-2">
 {% endblock %}
 {% block content %}
     <section aria-labelledby="events-heading">
-        <h2 id="events-heading">
-            Upcoming Events
-        </h2>
+        <h2 id="events-heading">Upcoming Events</h2>
+        <p class="event-intro">A place on campus. A moment to be part of. Find your next event and reserve your entry.</p>
         {% if events %}
-            <ul class="events-list events-list-layout-1">
+            <ul class="event-poster-list">
                 {% for event in events %}
-                    <li class="event-card">
-                        <article>
-                            <header>
-                                <h3>
-                                    {{ event.title }}
-                                </h3>
-                                <p>
-                                    <strong>
-                                        Venue:
-                                    </strong>
-                                    {{ event.venue }}
-                                </p>
-                                <p>
-                                    <strong>
-                                        Time:
-                                    </strong>
-                                    <time datetime="{{ event.starts_at }}">
-                                        {{ event.starts_at }}
-                                    </time>
-                                    –
-                                    <time datetime="{{ event.ends_at }}">
-                                        {{ event.ends_at }}
-                                    </time>
-                                </p>
-                            </header>
-                            <div class="event-pricing">
-                                <p>
-                                    <span>
-                                        <strong>
-                                            Member Price:
-                                        </strong>
-                                        ₹{{ event.member_price_inr }}
-                                    </span>
-                                    •
-                                    <span>
-                                        <strong>
-                                            Public Price:
-                                        </strong>
-                                        ₹{{ event.public_price_inr }}
-                                    </span>
-                                </p>
-                                <p>
-                                    {% if event.available_seats > 0 %}
-                                        <span class="badge badge-success">
-                                            {{ event.available_seats }}
-                                            seats available
-                                        </span>
-                                    {% else %}
-                                        <span class="badge badge-danger">
-                                            Sold Out
-                                        </span>
-                                    {% endif %}
-                                </p>
+                    <li>
+                        <article class="event-poster" aria-labelledby="event-{{ event.id }}-title">
+                            <div class="event-art" aria-hidden="true">
+    <span class="event-art-label">ClubLedger · Campus edition</span>
+    <img src="/static/campus-gala.svg" alt="" width="600" height="500">
+</div>
+                            <div class="event-poster-copy">
+                                <p class="event-eyebrow">Your campus. Your community.</p>
+                                <h3 id="event-{{ event.id }}-title">{{ event.title }}</h3>
+                                <dl class="event-facts">
+                                    <div>
+                                        <dt>Venue</dt>
+                                        <dd>{{ event.venue }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>When · India Standard Time</dt>
+                                        <dd>
+                                            <time datetime="{{ event.starts_at }}">{{ event.starts_at|event_date }} · {{ event.starts_at|event_time }}</time>
+                                            <time datetime="{{ event.ends_at }}">Until {{ event.ends_at|event_date }} · {{ event.ends_at|event_time }}</time>
+                                        </dd>
+                                    </div>
+                                </dl>
                             </div>
-                            <footer>
-                                <a href="/events/{{ event.id }}"
-                                class="button"
-                                aria-label="Book tickets for {{ event.title }}">
-                                    View &amp; Book Tickets
-                                </a>
-                            </footer>
+                            <div class="event-poster-stub">
+                                <p class="event-price">Member Price<strong>₹{{ event.member_price_inr }}</strong></p>
+                                <p class="event-price">Public Price<strong>₹{{ event.public_price_inr }}</strong></p>
+                                {% if event.available_seats > 0 %}
+                                    <p class="event-availability">{{ event.available_seats }} seats available</p>
+                                {% else %}
+                                    <p class="event-availability sold-out">Sold Out</p>
+                                {% endif %}
+                                <a href="/events/{{ event.id }}" class="button" aria-label="Book tickets for {{ event.title }}">View &amp; Book Tickets ↗</a>
+                            </div>
                         </article>
                     </li>
                 {% endfor %}
             </ul>
         {% else %}
-            <div class="empty-state">
-                <p>
-                    There are no events on sale at this time.
-                </p>
-            </div>
+            <div class="empty-state"><p>There are no events on sale at this time.</p></div>
         {% endif %}
     </section>
 {% endblock %}

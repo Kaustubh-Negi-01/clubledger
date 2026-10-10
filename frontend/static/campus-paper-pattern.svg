@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 240" fill="none">
+  <title>Decorative campus arch and botanical paper pattern</title>
+  <g stroke="#985347" stroke-width="1.3" opacity=".16">
+    <path d="M96 250V103a83 83 0 0 1 166 0v147"/>
+    <path d="M112 250V103a67 67 0 0 1 134 0v147"/>
+    <path d="M129 250V103a50 50 0 0 1 100 0v147"/>
+    <path d="M165 240q-4-53-40-80m38 59q-43-4-40-29 28-4 40 29zm-12-37q-2-30-25-36-9 22 25 36z"/>
+    <path d="m188 32 4 11 11 4-11 4-4 11-4-11-11-4 11-4z"/>
+    <circle cx="79" cy="117" r="3"/>
+    <circle cx="191" cy="137" r="3"/>
+  </g>
+</svg>

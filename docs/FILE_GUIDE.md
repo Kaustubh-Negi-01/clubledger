@@ -702,3 +702,11 @@ Each `tests/unit/<feature>/test_*.py` file checks the feature named by its folde
 | `database/README.md` | Migrations versus runtime data. |
 | `database/__init__.py` | Makes packaged migrations discoverable. |
 | `tests/req_status.json` | Tracks requirement evidence; it is not application data. |
+
+## Event ticket design additions
+
+- `backend/clubledger/presentation/event_display.py`: formats stored UTC event timestamps for readable IST dates and times, including midnight rollover; does not change stored times or booking rules.
+- `frontend/static/event-tickets.css`: responsive event poster, booking panel, admission-stub and print styles.
+- `frontend/static/campus-gala.svg`: original decorative campus-gathering illustration, separate from the real QR code.
+
+- `frontend/static/campus-paper-pattern.svg`: faint arch and botanical background for the parchment centre; decorative only.

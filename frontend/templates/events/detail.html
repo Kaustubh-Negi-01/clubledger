@@ -1,159 +1,72 @@
 {% extends "base.html" %}
-{# Events detail: presentation only. Values are supplied by the backend; forms submit to API routes. #}
-{% block title %}
-    {{ event.title }}
-    - ClubLedger
-{% endblock %}
-{% block header_title %}
-    {{ event.title }}
+{# The booking form retains its CSRF token, idempotency key and server price. #}
+{% block title %}{{ event.title }} - ClubLedger{% endblock %}
+{% block header_title %}{{ event.title }}{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/static/event-tickets.css?v=campus-paper-2">
 {% endblock %}
 {% block content %}
     <section aria-labelledby="detail-heading">
-        <h2 id="detail-heading">
-            Event Details
-        </h2>
-        <article class="event-detail events-detail-layout-1">
-            <header>
-                <h3>
-                    {{ event.title }}
-                </h3>
-                <p>
-                    <strong>
-                        Venue:
-                    </strong>
-                    {{ event.venue }}
-                </p>
-                <p>
-                    <strong>
-                        Time:
-                    </strong>
-                    <time datetime="{{ event.starts_at }}">
-                        {{ event.starts_at }}
-                    </time>
-                    –
-                    <time datetime="{{ event.ends_at }}">
-                        {{ event.ends_at }}
-                    </time>
-                </p>
-                <p>
-                    <strong>
-                        Capacity:
-                    </strong>
-                    {{ event.capacity }}
-                    total seats
-                </p>
-                <p>
-                    <strong>
-                        Status:
-                    </strong>
-                    {% if available_seats > 0 %}
-                        <span class="badge badge-success">
-                            {{ available_seats }}
-                            seats available
-                        </span>
-                    {% else %}
-                        <span class="badge badge-danger">
-                            Sold Out
-                        </span>
-                    {% endif %}
-                </p>
-            </header>
-            <div class="pricing-info events-detail-layout-2">
-                <h4>
-                    Pricing Tiers
-                </h4>
-                <ul>
-                    <li>
-                        <strong>
-                            Member Price:
-                        </strong>
-                        ₹{{ member_price_inr }}
-                    </li>
-                    <li>
-                        <strong>
-                            Public Price:
-                        </strong>
-                        ₹{{ public_price_inr }}
-                    </li>
-                </ul>
-                {% if session %}
-                    <p>
-                        <em>
-                            Your applicable rate:
-                            <strong>
-                                ₹{{ user_price_inr }}
-                            </strong>
-                            (Tier:
-                            {{ user_price_tier }}
-                            )
-                        </em>
-                    </p>
-                {% endif %}
-            </div>
-            <div class="booking-section">
-                {% if session %}
-                    {% if available_seats > 0 %}
-                        <form method="post"
-                        action="/events/{{ event.id }}/hold"
-                        aria-label="Book Tickets Form">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <input type="hidden"
-                            name="idempotency_key"
-                            value="{{ idempotency_key }}">
-                            <fieldset class="events-detail-layout-3">
-                                <legend>
-                                    Reserve Tickets
-                                </legend>
-                                <div class="form-group events-detail-layout-4">
-                                    <label for="ticket-qty">
-                                        Number of Tickets (Max
-                                        {{ event.max_per_order }}
-                                        per order):
-                                    </label>
-                                    <input type="number"
-                                    id="ticket-qty"
-                                    name="qty"
-                                    value="1"
-                                    min="1"
-                                    max="{{ [event.max_per_order, available_seats] | min }}"
-                                    required
-                                    class="events-detail-layout-5">
-                                </div>
-                                <button type="submit" class="button button-primary">
-                                    {% if user_price_tier == "FREE" or user_price_inr == "0.00" %}
-                                        Confirm Free Tickets
-                                    {% else %}
-                                        Proceed to Payment
-                                    {% endif %}
-                                </button>
-                            </fieldset>
-                        </form>
-                    {% else %}
-                        <p class="sold-out-message"
-                        role="alert">
-                            This event is currently sold out.
-                        </p>
-                    {% endif %}
-                {% else %}
-                    <div class="auth-prompt events-detail-layout-6">
-                        <p>
-                            You must be signed in to purchase or reserve tickets.
-                        </p>
-                        <p>
-                            <a href="/auth/login" class="button">
-                                Log In to Book
-                            </a>
-                        </p>
+        <h2 id="detail-heading">Event Details</h2>
+        <article class="event-poster event-detail-poster">
+            <div class="event-art" aria-hidden="true">
+    <span class="event-art-label">ClubLedger · Campus edition</span>
+    <img src="/static/campus-gala.svg" alt="" width="600" height="500">
+</div>
+            <div class="event-poster-copy">
+                <p class="event-eyebrow">Campus gathering · General admission</p>
+                <h3>{{ event.title }}</h3>
+                <dl class="event-facts">
+                    <div><dt>Venue</dt><dd>{{ event.venue }}</dd></div>
+                    <div>
+                        <dt>When · India Standard Time</dt>
+                        <dd>
+                            <time datetime="{{ event.starts_at }}">{{ event.starts_at|event_date }} · {{ event.starts_at|event_time }}</time>
+                            <time datetime="{{ event.ends_at }}">Until {{ event.ends_at|event_date }} · {{ event.ends_at|event_time }}</time>
+                        </dd>
                     </div>
-                {% endif %}
+                    <div><dt>Capacity</dt><dd>{{ event.capacity }} total seats</dd></div>
+                </dl>
             </div>
         </article>
-        <nav aria-label="Back navigation">
-            <p>
-                <a href="/events">
-                    ← Back to all events
-                </a>
-            </p>
-        </nav>
+        <div class="event-booking-panel">
+            <h3>Reserve your place</h3>
+            <div class="event-booking-prices">
+                <p class="event-price">Member Price<strong>₹{{ member_price_inr }}</strong></p>
+                <p class="event-price">Public Price<strong>₹{{ public_price_inr }}</strong></p>
+                {% if available_seats > 0 %}
+                    <p class="event-availability">{{ available_seats }} seats available</p>
+                {% else %}
+                    <p class="event-availability sold-out">Sold Out</p>
+                {% endif %}
+            </div>
+            {% if session %}
+                <p class="event-rate-note">Your applicable rate: <strong>₹{{ user_price_inr }}</strong> (Tier: {{ user_price_tier }})</p>
+                {% if available_seats > 0 %}
+                    <form method="post" action="/events/{{ event.id }}/hold" aria-label="Book Tickets Form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
+                        <fieldset>
+                            <legend>Reserve Tickets</legend>
+                            <label for="ticket-qty">Number of Tickets (Max {{ event.max_per_order }} per order):</label>
+                            <input type="number" id="ticket-qty" name="qty" value="1" min="1" max="{{ [event.max_per_order, available_seats]|min }}" required>
+                            <button type="submit" class="button">
+                                {% if user_price_tier == "FREE" or user_price_inr == "0.00" %}
+                                    Confirm Free Tickets
+                                {% else %}
+                                    Proceed to Payment
+                                {% endif %}
+                            </button>
+                        </fieldset>
+                    </form>
+                {% else %}
+                    <p role="alert">This event is currently sold out.</p>
+                {% endif %}
+            {% else %}
+                <p>You must be signed in to purchase or reserve tickets.</p>
+                <a href="/auth/login" class="button">Log In to Book</a>
+            {% endif %}
+        </div>
+        <nav aria-label="Back navigation"><a href="/events">← Back to all events</a></nav>
     </section>
 {% endblock %}
