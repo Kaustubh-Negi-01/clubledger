@@ -1,0 +1,105 @@
+/* Each event has its own art direction. No selector targets the original gala.
+   One booking structure stays familiar; real prices, QR and status stay legible. */
+.theme-music { --paper:#f5e8b6; --stub:#e3d39d; --ink:#28213e; --accent:#473367; --edge:#8c7950; --font:Arial,sans-serif; border-radius:8px; }
+.theme-innovation { --paper:#eef5ff; --stub:#d5e6ff; --ink:#153658; --accent:#184f89; --edge:#7692b2; --font:Arial,sans-serif; border-radius:4px; }
+.theme-culture { --paper:#f6e7f5; --stub:#ebd6ee; --ink:#57224f; --accent:#75276c; --edge:#aa79a1; --font:Georgia,serif; border-radius:32px 8px 32px 8px; }
+.theme-photo { --paper:#f0f0e9; --stub:#dedfd7; --ink:#1e2727; --accent:#394845; --edge:#88918a; --font:'Courier New',monospace; border-radius:3px; }
+.theme-design { --paper:#fff0de; --stub:#ffceab; --ink:#202c76; --accent:#293c93; --edge:#bc7a54; --font:Arial,sans-serif; border-radius:0 28px 0 28px; }
+.theme-debate { --paper:#f6eee2; --stub:#eadcca; --ink:#542635; --accent:#722f44; --edge:#ae8878; --font:Georgia,serif; border-radius:4px; }
+.theme-alumni { --paper:#edf1f4; --stub:#d5e0e8; --ink:#18364d; --accent:#32526b; --edge:#8b9dab; --font:Georgia,serif; border-radius:16px; }
+.theme-mic { --paper:#fae8ef; --stub:#f3cedf; --ink:#50253e; --accent:#843753; --edge:#b9859b; --font:Arial,sans-serif; border-radius:24px; }
+.theme-eco { --paper:#edf3e3; --stub:#d8e5c6; --ink:#224939; --accent:#326246; --edge:#8aa17c; --font:Georgia,serif; border-radius:42px 8px 42px 8px; }
+
+.event-themed .event-poster-copy,
+.event-themed .pass-main,
+.event-themed .checkout-paper {
+    background:var(--paper);
+    color:var(--ink);
+}
+.event-themed .event-poster-stub,
+.event-themed .pass-stub,
+.event-themed .checkout-stub {
+    background:var(--stub);
+    color:var(--ink);
+    border-color:var(--edge);
+}
+.event-themed .event-eyebrow,
+.event-themed .event-price strong,
+.event-themed .checkout-amount strong,
+.event-themed .event-facts dt,
+.event-themed .pass-smallprint,
+.event-themed .checkout-reference,
+.event-themed .checkout-stub p,
+.event-themed .checkout-next-steps { color:var(--accent); }
+.event-themed h3,
+.event-themed .checkout-paper h2 {
+    color:var(--ink);
+    font-family:var(--font);
+}
+.event-themed .button,
+.event-themed .checkout-buttons button:not(.secondary) { background:var(--ink); border-color:var(--ink); color:#fff; }
+.event-themed .checkout-buttons button.secondary { background:var(--paper); color:var(--ink); border-color:var(--edge); }
+.event-themed .event-art { background:var(--ink); }
+.event-themed .event-art-label { background:#101820cc; color:#fff; padding:6px 9px; border-radius:4px; letter-spacing:.1em; z-index:1; }
+.event-themed .checkout-reference code { background:var(--paper); color:var(--ink); }
+.event-themed .checkout-amount,
+.event-themed .checkout-payment-state,
+.event-themed .checkout-expiry-note { border-color:var(--edge); }
+.theme-innovation .event-poster-copy,
+.theme-innovation .pass-main { background-image:linear-gradient(#1536580b 1px,transparent 1px),linear-gradient(90deg,#1536580b 1px,transparent 1px); background-size:24px 24px; }
+.theme-photo .event-art { border-top:12px dashed #c0c3b7; border-bottom:12px dashed #c0c3b7; }
+.theme-photo h3 { text-transform:uppercase; font-size:clamp(25px,2.5vw,35px); letter-spacing:-.06em; }
+.theme-design .event-poster-copy,
+.theme-design .pass-main { box-shadow:inset 6px 0 #293c93; }
+.theme-design h3 { font-weight:900; letter-spacing:-.055em; }
+.theme-debate .event-poster-copy,
+.theme-debate .pass-main { outline:1px solid #722f442b; outline-offset:-12px; }
+.theme-alumni .event-poster-copy { border-top:5px solid #aa8640; }
+.theme-mic h3 { font-style:italic; }
+.theme-eco .event-poster-copy { border-bottom:5px solid #8aa17c; }
+
+/* Non-gala checkout receives its own illustration instead of festival lights. */
+.checkout-theme-art { grid-column:1/-1; height:170px; position:relative; overflow:hidden; background:var(--ink); }
+.checkout-theme-art img { width:100%; height:100%; object-fit:cover; object-position:center 48%; display:block; }
+.checkout-theme-art .event-art-label { position:absolute; top:16px; left:24px; }
+@media screen and (max-width:1100px) {
+    .admission-pass.event-themed > .event-art { display:block; grid-column:1/-1; height:210px; min-height:0; }
+}
+@media(max-width:600px) {
+    .checkout-theme-art { height:130px; }
+    .event-themed .event-art { min-height:200px; }
+}
+@media print {
+    .event-themed .pass-stub .qr-container { background:#fff; }
+    .event-themed { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+}
+
+/* Theme-specific paper linework: soft shadows are drawn inside each SVG.
+   Right-aligned decorations sit behind content, never over the QR image. */
+.theme-music { --line-art:url("/static/event-art/music-lines.svg?v=1"); }
+.theme-innovation { --line-art:url("/static/event-art/innovation-lines.svg?v=1"); }
+.theme-culture { --line-art:url("/static/event-art/culture-lines.svg?v=1"); }
+.theme-photo { --line-art:url("/static/event-art/photo-lines.svg?v=1"); }
+.theme-design { --line-art:url("/static/event-art/design-lines.svg?v=1"); }
+.theme-debate { --line-art:url("/static/event-art/debate-lines.svg?v=1"); }
+.theme-alumni { --line-art:url("/static/event-art/alumni-lines.svg?v=1"); }
+.theme-mic { --line-art:url("/static/event-art/mic-lines.svg?v=1"); }
+.theme-eco { --line-art:url("/static/event-art/eco-lines.svg?v=1"); }
+
+.event-themed .event-poster-copy,
+.event-themed .pass-main,
+.event-themed .checkout-paper,
+.event-themed .event-poster-stub,
+.event-themed .pass-stub,
+.event-themed .checkout-stub {
+    background-image:var(--line-art);
+    background-repeat:no-repeat;
+    background-position:right bottom;
+    background-size:cover;
+}
+/* Preserve a quiet background at small sizes without losing the theme. */
+@media(max-width:600px) {
+    .event-themed .event-poster-copy,
+    .event-themed .pass-main,
+    .event-themed .checkout-paper { background-size:auto 100%; }
+}

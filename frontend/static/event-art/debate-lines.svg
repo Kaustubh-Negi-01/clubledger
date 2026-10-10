@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500" fill="none">
+<title>Decorative debate line art with a soft offset shadow</title>
+<defs><filter id="depth" x="-15%" y="-15%" width="135%" height="135%" color-interpolation-filters="sRGB"><feDropShadow dx="3" dy="4" stdDeviation="1.8" flood-color="#722f44" flood-opacity=".45"/></filter></defs>
+<g stroke="#722f44" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".23" filter="url(#depth)"><path d="M375 380q90-155 195-45v95q-105-100-195 20Z"/><path d="M375 380v70m90-138v98m-60-40q25-15 45-15m35 0q35 0 60 25m-60-3q35 0 60 25m-60-3q35 0 60 25"/><path d="M480 170q-35 0-35 35v22h28v-30h-14q0-15 21-17ZM535 170q-35 0-35 35v22h28v-30h-14q0-15 21-17Z"/><path d="M350 450q-50-65-25-135m-2 30q-37 0-32-30 33 0 32 30m4 37q-38 0-35-28 32-3 35 28m11 35q-35 7-39-21 30-9 39 21"/></g>
+</svg>

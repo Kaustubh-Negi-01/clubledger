@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500" fill="none">
+<title>Decorative innovation line art with a soft offset shadow</title>
+<defs><filter id="depth" x="-15%" y="-15%" width="135%" height="135%" color-interpolation-filters="sRGB"><feDropShadow dx="3" dy="4" stdDeviation="1.8" flood-color="#184f89" flood-opacity=".45"/></filter></defs>
+<g stroke="#184f89" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".23" filter="url(#depth)"><path d="M400 490v-90h65v-80h75v-85h60M600 155h-90v65h-80v-90h-95M470 0v85h80M330 480v-45h55v-80"/><circle cx="465" cy="320" r="8"/><circle cx="430" cy="220" r="8"/><circle cx="470" cy="85" r="7"/><circle cx="385" cy="355" r="7"/><path d="m470 275 55-32 55 32v63l-55 32-55-32Z"/><path d="m487 285 38-22 38 22v43l-38 22-38-22Z"/><path d="M350 65h60m-30-30v60M560 450h40m-20-20v40"/></g>
+</svg>

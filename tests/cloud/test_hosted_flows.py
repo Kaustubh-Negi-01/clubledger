@@ -47,3 +47,6 @@ from tests.e2e.test_failed_purchase_retry import (
 from tests.e2e.test_refund_navigation import (
     test_refund_returns_all_payments_without_hiding_other_refunds,
 )
+from tests.unit.test_demo_dataset import (
+    test_large_demo_append_preserves_existing_data_and_is_repeat_safe,
+)

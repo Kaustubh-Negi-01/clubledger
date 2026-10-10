@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500" fill="none">
+<title>Decorative music line art with a soft offset shadow</title>
+<defs><filter id="depth" x="-15%" y="-15%" width="135%" height="135%" color-interpolation-filters="sRGB"><feDropShadow dx="3" dy="4" stdDeviation="1.8" flood-color="#473367" flood-opacity=".45"/></filter></defs>
+<g stroke="#473367" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".23" filter="url(#depth)"><path d="M240 280Q390 170 600 260M240 300Q390 190 600 280M240 320Q390 210 600 300M240 340Q390 230 600 320M240 360Q390 250 600 340"/><path d="M450 250v110m0-110 66-18v103"/><ellipse cx="437" cy="363" rx="14" ry="9" transform="rotate(-20 437 363)"/><ellipse cx="503" cy="338" rx="14" ry="9" transform="rotate(-20 503 338)"/><path d="M320 420q60-85 100 0t100 0t100 0M320 437q60-85 100 0t100 0t100 0"/><circle cx="535" cy="125" r="57"/><circle cx="535" cy="125" r="48"/><circle cx="535" cy="125" r="8"/></g>
+</svg>

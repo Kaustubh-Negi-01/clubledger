@@ -1,0 +1,14 @@
+{# Presentation-only catalog: names choose artwork, never prices or admission rules.
+   Unknown events retain the original gala design until a theme is assigned. #}
+{% set gala = {'slug':'gala', 'art':'/static/campus-gala.svg', 'label':'ClubLedger · Campus edition', 'eyebrow':'Your campus. Your community.'} %}
+{% set themes = {
+    'Campus Music Night': {'slug':'music', 'art':'/static/event-art/music.svg', 'label':'Live on campus', 'eyebrow':'Turn up · Tune in'},
+    'Innovation Showcase': {'slug':'innovation', 'art':'/static/event-art/innovation.svg', 'label':'Ideas in motion', 'eyebrow':'Build tomorrow · Today'},
+    'Spring Cultural Fest': {'slug':'culture', 'art':'/static/event-art/culture.svg', 'label':'Many cultures · One campus', 'eyebrow':'Colour · Rhythm · Belonging'},
+    'Photography Walk': {'slug':'photo', 'art':'/static/event-art/photo.svg', 'label':'Through your lens', 'eyebrow':'Frame the everyday'},
+    'Design Sprint': {'slug':'design', 'art':'/static/event-art/design.svg', 'label':'Make something new', 'eyebrow':'Sketch · Prototype · Repeat'},
+    'Debate Championship': {'slug':'debate', 'art':'/static/event-art/debate.svg', 'label':'The floor is yours', 'eyebrow':'A meeting of minds'},
+    'Alumni Networking': {'slug':'alumni', 'art':'/static/event-art/alumni.svg', 'label':'Beyond the campus', 'eyebrow':'New connections · Shared roots'},
+    'Open Mic Evening': {'slug':'mic', 'art':'/static/event-art/mic.svg', 'label':'One mic · Your moment', 'eyebrow':'Stories worth hearing'},
+    'Sustainability Workshop': {'slug':'eco', 'art':'/static/event-art/eco.svg', 'label':'Small steps · Lasting change', 'eyebrow':'Learn · Grow · Regenerate'}
+} %}

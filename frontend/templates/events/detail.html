@@ -1,20 +1,23 @@
 {% extends "base.html" %}
+{% from "events/themes.html" import themes, gala %}
 {# The booking form retains its CSRF token, idempotency key and server price. #}
 {% block title %}{{ event.title }} - ClubLedger{% endblock %}
 {% block header_title %}{{ event.title }}{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/static/event-tickets.css?v=campus-paper-2">
+    <link rel="stylesheet" href="/static/event-tickets.css?v=event-themes-1">
+    <link rel="stylesheet" href="/static/event-themes.css?v=2">
 {% endblock %}
 {% block content %}
+    {% set theme = themes.get(event.title, gala) %}
     <section aria-labelledby="detail-heading">
         <h2 id="detail-heading">Event Details</h2>
-        <article class="event-poster event-detail-poster">
+        <article class="event-poster event-detail-poster{% if theme.slug != 'gala' %} event-themed theme-{{ theme.slug }}{% endif %}">
             <div class="event-art" aria-hidden="true">
-    <span class="event-art-label">ClubLedger · Campus edition</span>
-    <img src="/static/campus-gala.svg" alt="" width="600" height="500">
+    <span class="event-art-label">{{ theme.label }}</span>
+    <img src="{{ theme.art }}" alt="" width="600" height="500">
 </div>
             <div class="event-poster-copy">
-                <p class="event-eyebrow">Campus gathering · General admission</p>
+                <p class="event-eyebrow">{{ theme.eyebrow if theme.slug != 'gala' else 'Campus gathering · General admission' }}</p>
                 <h3>{{ event.title }}</h3>
                 <dl class="event-facts">
                     <div><dt>Venue</dt><dd>{{ event.venue }}</dd></div>

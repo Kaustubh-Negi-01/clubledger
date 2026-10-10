@@ -1,9 +1,11 @@
 {% extends "base.html" %}
+{% from "events/themes.html" import themes, gala %}
 {# Booking cards display live event data; the illustration is decorative. #}
 {% block title %}Events - ClubLedger{% endblock %}
 {% block header_title %}Events & Ticketing{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/static/event-tickets.css?v=campus-paper-2">
+    <link rel="stylesheet" href="/static/event-tickets.css?v=event-themes-1">
+    <link rel="stylesheet" href="/static/event-themes.css?v=2">
 {% endblock %}
 {% block content %}
     <section aria-labelledby="events-heading">
@@ -12,14 +14,15 @@
         {% if events %}
             <ul class="event-poster-list">
                 {% for event in events %}
+                    {% set theme = themes.get(event.title, gala) %}
                     <li>
-                        <article class="event-poster" aria-labelledby="event-{{ event.id }}-title">
+                        <article class="event-poster{% if theme.slug != 'gala' %} event-themed theme-{{ theme.slug }}{% endif %}" aria-labelledby="event-{{ event.id }}-title">
                             <div class="event-art" aria-hidden="true">
-    <span class="event-art-label">ClubLedger · Campus edition</span>
-    <img src="/static/campus-gala.svg" alt="" width="600" height="500">
+    <span class="event-art-label">{{ theme.label }}</span>
+    <img src="{{ theme.art }}" alt="" width="600" height="500">
 </div>
                             <div class="event-poster-copy">
-                                <p class="event-eyebrow">Your campus. Your community.</p>
+                                <p class="event-eyebrow">{{ theme.eyebrow }}</p>
                                 <h3 id="event-{{ event.id }}-title">{{ event.title }}</h3>
                                 <dl class="event-facts">
                                     <div>

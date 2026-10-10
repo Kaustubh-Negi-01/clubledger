@@ -1,11 +1,14 @@
 {% extends "base.html" %}
+{% from "events/themes.html" import themes, gala %}
 {# Only the real backend-generated QR and saved ticket code grant admission. #}
 {% block title %}Ticket {{ ticket.code }} - ClubLedger{% endblock %}
 {% block header_title %}Event Ticket{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/static/event-tickets.css?v=campus-paper-2">
+    <link rel="stylesheet" href="/static/event-tickets.css?v=event-themes-1">
+    <link rel="stylesheet" href="/static/event-themes.css?v=2">
 {% endblock %}
 {% block content %}
+    {% set theme = themes.get(ticket.event_title, gala) %}
     <section class="ticket-page" aria-labelledby="ticket-heading">
         <h2 id="ticket-heading">Digital Admission Pass</h2>
         {% if ticket.status == 'ISSUED' %}
@@ -13,13 +16,13 @@
         {% else %}
             <p class="event-intro">This is your saved ticket record. Check the admission status before using this pass.</p>
         {% endif %}
-        <article class="admission-pass" aria-labelledby="pass-event-title">
+        <article class="admission-pass{% if theme.slug != 'gala' %} event-themed theme-{{ theme.slug }}{% endif %}" aria-labelledby="pass-event-title">
             <div class="event-art" aria-hidden="true">
-    <span class="event-art-label">ClubLedger · Campus edition</span>
-    <img src="/static/campus-gala.svg" alt="" width="600" height="500">
+    <span class="event-art-label">{{ theme.label }}</span>
+    <img src="{{ theme.art }}" alt="" width="600" height="500">
 </div>
             <div class="pass-main">
-                <p class="event-eyebrow">ClubLedger · One attendee</p>
+                <p class="event-eyebrow">{{ theme.eyebrow ~ ' · One attendee' if theme.slug != 'gala' else 'ClubLedger · One attendee' }}</p>
                 <h3 id="pass-event-title">{{ ticket.event_title }}</h3>
                 <dl class="event-facts">
                     <div class="pass-venue"><dt>Venue</dt><dd>{{ ticket.event_venue }}</dd></div>

@@ -1,11 +1,20 @@
+{% from "events/themes.html" import themes, gala %}
+{% set theme = themes.get(ticket_event.title, gala) if ticket_event else gala %}
 {# Ticket checkout uses the saved payment amount and owned reservation details.
    The two buttons still submit to the existing signed simulator flow. #}
-<section class="ticket-checkout" aria-labelledby="checkout-event-title">
+<section class="ticket-checkout{% if theme.slug != 'gala' %} event-themed theme-{{ theme.slug }}{% endif %}" aria-labelledby="checkout-event-title">
+    {% if theme.slug == 'gala' %}
     <div class="checkout-lights" aria-hidden="true">
         <img src="/static/campus-string-lights.svg?v=festival-3" alt="" width="1000" height="170">
     </div>
+    {% else %}
+    <div class="checkout-theme-art" aria-hidden="true">
+        <span class="event-art-label">{{ theme.label }}</span>
+        <img src="{{ theme.art }}" alt="" width="600" height="500">
+    </div>
+    {% endif %}
     <div class="checkout-paper">
-        <p class="event-eyebrow">Ticket payment · Your next campus moment</p>
+        <p class="event-eyebrow">Ticket payment · {{ theme.eyebrow if theme.slug != 'gala' else 'Your next campus moment' }}</p>
         <h2 id="checkout-event-title">{{ ticket_event.title if ticket_event else 'Ticket payment' }}</h2>
         {% if ticket_event %}
             <dl class="event-facts checkout-event-facts">

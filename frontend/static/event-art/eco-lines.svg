@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500" fill="none">
+<title>Decorative eco line art with a soft offset shadow</title>
+<defs><filter id="depth" x="-15%" y="-15%" width="135%" height="135%" color-interpolation-filters="sRGB"><feDropShadow dx="3" dy="4" stdDeviation="1.8" flood-color="#326246" flood-opacity=".45"/></filter></defs>
+<g stroke="#326246" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".23" filter="url(#depth)"><path d="M460 490q25-150 100-280m-73 210q-98 0-105-77 84-8 105 77m25-63q80-7 82-90-79 0-82 90m23-59q-80-14-78-85 75 4 78 85m20-83q55-12 43-77-65 14-43 77"/><path d="M305 455Q330 340 420 355T600 390M305 472Q330 357 420 372T600 407M305 489Q330 374 420 389T600 424"/><circle cx="445" cy="120" r="48"/><path d="M410 120q35-40 70 0m-70 0q35 40 70 0m-35-48q-28 48 0 96m0-96q28 48 0 96M397 120h96"/></g>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500" fill="none">
+<title>Decorative alumni line art with a soft offset shadow</title>
+<defs><filter id="depth" x="-15%" y="-15%" width="135%" height="135%" color-interpolation-filters="sRGB"><feDropShadow dx="3" dy="4" stdDeviation="1.8" flood-color="#32526b" flood-opacity=".45"/></filter></defs>
+<g stroke="#32526b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".23" filter="url(#depth)"><path d="M440 490V275a80 80 0 0 1 160 0v215M455 490V275a65 65 0 0 1 130 0v215M470 490V275a50 50 0 0 1 100 0v215"/><path d="m370 100 90-40 90 65-45 90-135-115m90-40 45 155m45-90-180-25"/><circle cx="370" cy="100" r="8"/><circle cx="460" cy="60" r="9"/><circle cx="550" cy="125" r="8"/><circle cx="505" cy="215" r="9"/><path d="M360 470h240M350 480h250"/></g>
+</svg>
