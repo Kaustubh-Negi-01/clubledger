@@ -45,5 +45,9 @@ class MigrationGapError(MigrationError):
     """Raised when an internal migration gap is detected."""
 
 
+class MigrationDuplicateError(MigrationError):
+    """Raised when duplicate migration numbers are detected."""
+
+
 class MigrationChecksumError(MigrationError):
     """Raised when an applied migration has a modified checksum."""
