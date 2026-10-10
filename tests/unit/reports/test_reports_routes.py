@@ -126,7 +126,7 @@ def test_finance_endpoints_auth_protection(app_and_db):
     client.cookies.set("cl_session", admin_token)
     resp = client.get("/finance")
     assert resp.status_code == 200
-    assert "Finance & Treasury" in resp.text
+    assert "Cash on Hand (1000)" in resp.text
 
 
 def test_finance_json_and_drilldown(app_and_db):

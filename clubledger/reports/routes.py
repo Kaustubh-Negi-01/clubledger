@@ -18,7 +18,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from clubledger.config import get_db_path
-from clubledger.core.auth import require_perm
+from clubledger.core.auth import require_perm, get_user_permissions
 from clubledger.core.db import connect
 from clubledger.core.types import Session
 from clubledger.reports import service
@@ -45,12 +45,20 @@ def get_finance_dashboard(
     request: Request,
     session: Annotated[Session, Depends(require_perm("finance.view"))],
     as_of: Annotated[str | None, Query(alias="as_of")] = None,
+    period_id: Annotated[int | None, Query()] = None,
 ) -> Response:
     conn = connect(get_db_path())
     try:
-        term_id = _get_open_term_id(conn)
+        term_id = period_id or _get_open_term_id(conn)
+        if not conn.execute('SELECT 1 FROM terms WHERE id=?',(term_id,)).fetchone():
+            raise DomainError('NOT_FOUND',404)
         cs = service.cash_summary(conn, term_id, at=as_of)
         bd = service.drilldown(conn, at=as_of)
+        period_bd = service.drilldown(conn, term_id=term_id, at=as_of)
+        period_accounts = {item['account_code']:item for item in period_bd.items}
+        for item in bd.items:
+            if item['type'] in ('INCOME','EXPENSE'):
+                item.update(period_accounts[item['account_code']])
 
         if "application/json" in request.headers.get("accept", ""):
             return JSONResponse(
@@ -73,6 +81,8 @@ def get_finance_dashboard(
                 "cash_summary": cs,
                 "breakdown": bd,
                 "user": session,
+                "period_id": term_id,
+                "terms": conn.execute('SELECT id,label,status FROM terms ORDER BY id DESC').fetchall(),
             },
         )
     finally:
@@ -86,10 +96,13 @@ def get_account_drilldown(
     session: Annotated[Session, Depends(require_perm("finance.view"))],
     as_of: Annotated[str | None, Query(alias="as_of")] = None,
     watermark_id: Annotated[int | None, Query(alias="watermark_id")] = None,
+    period_id: Annotated[int | None, Query()] = None,
 ) -> Response:
     conn = connect(get_db_path())
     try:
-        dd = service.drilldown(conn, account_code=code, at=as_of, watermark_id=watermark_id)
+        account=conn.execute('SELECT type FROM accounts WHERE code=?',(code,)).fetchone()
+        term_id = (period_id or _get_open_term_id(conn)) if account and account['type'] in ('INCOME','EXPENSE') else None
+        dd = service.drilldown(conn, account_code=code, term_id=term_id, at=as_of, watermark_id=watermark_id)
 
         if "application/json" in request.headers.get("accept", ""):
             return JSONResponse({"title": dd.title, "total_paise": dd.total_paise, "items": dd.items})
@@ -115,6 +128,13 @@ def get_entry_drilldown(
     conn = connect(get_db_path())
     try:
         dd = service.drilldown(conn, entry_id=entry_id)
+        source = dd.items[0]
+        source_expense = None
+        source_receipts = []
+        if source['source_type'] == 'expense':
+            source_expense = conn.execute('SELECT e.*, f.title AS fundraiser_title FROM expenses e LEFT JOIN fundraisers f ON f.id=e.fundraiser_id WHERE e.id=?', (source['source_id'],)).fetchone()
+            if source_expense and (source_expense['submitter_id']==session.user_id or 'receipts.view_all' in get_user_permissions(conn, session.user_id)):
+                source_receipts = conn.execute('SELECT id,original_name FROM receipts WHERE expense_id=?', (source['source_id'],)).fetchall()
 
         if "application/json" in request.headers.get("accept", ""):
             return JSONResponse({"title": dd.title, "total_paise": dd.total_paise, "items": dd.items})
@@ -125,6 +145,8 @@ def get_entry_drilldown(
             context={
                 "drilldown": dd,
                 "user": session,
+                "source_expense": source_expense,
+                "source_receipts": source_receipts,
             },
         )
     finally:

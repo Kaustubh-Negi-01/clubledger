@@ -8,10 +8,10 @@
   <h2 id="catalog-heading">Official Merchandise</h2>
 
   {% if products %}
-  <div class="product-grid">
+  <div class="grid">
     {% for product in products %}
     <article class="product-card" aria-labelledby="product-title-{{ product.id }}">
-      <h3 id="product-title-{{ product.id }}">
+      <div class="product-art" aria-hidden="true"><svg viewBox="0 0 100 100">{% if "tote" in product.name|lower %}<path d="M25 35h50l6 47H19zM35 35V24c0-20 30-20 30 0v11"/>{% else %}<path d="M30 20 15 35l15 13v32h40V48l15-13-15-15-10 8H40z"/><path d="M40 28c0 12 20 12 20 0"/>{% endif %}</svg></div><h3 id="product-title-{{ product.id }}">
         <a href="/store/{{ product.id }}">{{ product.name }}</a>
       </h3>
       <p class="product-description">{{ product.description }}</p>

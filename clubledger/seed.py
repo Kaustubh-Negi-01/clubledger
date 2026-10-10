@@ -107,6 +107,10 @@ def seed_open_term(conn: sqlite3.Connection) -> int:
     if row:
         return int(row["id"])
 
+    previous = conn.execute("SELECT * FROM terms WHERE status='CLOSED' ORDER BY id DESC LIMIT 1").fetchone()
+    if previous:
+        return conn.execute("INSERT INTO terms(label,starts_at,status,created_at) VALUES(?,?,'OPEN',?)", (f'Period after {previous["id"]}',previous['ends_at'],clock.now())).lastrowid
+
     # If no OPEN term exists, create a default OPEN term
     now_iso = clock.now()
     conn.execute(
@@ -134,6 +138,9 @@ def seed_demo_actors(conn: sqlite3.Connection) -> None:
         ("treasurer@skyline.edu", "Demo Treasurer", "treasurer"),
         ("events@skyline.edu", "Demo Events Staff", "events"),
         ("student@skyline.edu", "Demo Student", None),
+        ("store@skyline.edu", "Store Officer", "store"),
+        ("comms@skyline.edu", "Communications Officer", "comms"),
+        ("incoming@skyline.edu", "Incoming Officer", None),
     ]
 
     for email, name, role_code in actors:
@@ -192,3 +199,28 @@ def seed_all(conn: sqlite3.Connection, demo: bool = False) -> None:
     # 5. Demo actors
     if demo:
         seed_demo_actors(conn)
+        seed_demo_content(conn)
+
+
+def seed_demo_content(conn):
+    from clubledger.tasks.service import create_fundraiser, create_task
+    from clubledger.comms.service import create_announcement, publish, subscribe
+    from datetime import datetime, timedelta, timezone
+    now = clock.now()
+    student = conn.execute("SELECT id FROM users WHERE email='student@skyline.edu'").fetchone()['id']
+    admin = conn.execute("SELECT id FROM users WHERE email='admin@skyline.edu'").fetchone()['id']
+    term = seed_open_term(conn)
+    if not conn.execute('SELECT 1 FROM products').fetchone():
+        for name,description,price,sizes in [('Club essentials tee','Heavyweight cotton. A simple mark of belonging.',65000,['S','M','L','XL']),('Campus carry tote','A reusable canvas tote for everyday campus life.',35000,['One size'])]:
+            product = conn.execute('INSERT INTO products(name,description,base_price_paise,created_at) VALUES(?,?,?,?)', (name,description,price,now)).lastrowid
+            for size in sizes:
+                conn.execute('INSERT INTO variants(product_id,sku,size,physical_qty,created_at) VALUES(?,?,?,?,?)', (product,f'CL-{product}-{size}',size,20,now))
+    if not conn.execute('SELECT 1 FROM fundraisers').fetchone():
+        fundraiser = create_fundraiser(conn, term_id=term, title='Campus library drive', goal_paise=10000000, status='ACTIVE')
+        due = (datetime.fromisoformat(now.replace('Z','+00:00'))+timedelta(days=7)).isoformat().replace('+00:00','Z')
+        create_task(conn, fundraiser_id=fundraiser, title='Design the volunteer sign-up poster', owner_user_id=student, due_at=due)
+        create_task(conn, fundraiser_id=fundraiser, title='Confirm collection desks and volunteers', owner_user_id=admin, due_at=due, status='DOING')
+    if not conn.execute('SELECT 1 FROM announcements').fetchone():
+        subscribe(conn, 'student@skyline.edu', student)
+        announcement = create_announcement(conn, admin, 'Welcome to the new club workspace', 'Discover upcoming events, join the association, and follow the campus library drive. ClubLedger brings our work and financial records together. This is seeded demonstration content.')
+        publish(conn, announcement)

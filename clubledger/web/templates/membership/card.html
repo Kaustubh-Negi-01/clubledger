@@ -33,8 +33,9 @@
 
     {% if membership.qr_token %}
     <div class="verification-token">
+      <img class="qr" src="{{ qr_data }}" width="180" height="180" alt="Membership verification QR code">
       <p>Verification Token:</p>
-      <code>{{ membership.qr_token }}</code>
+      <code>{{ membership.qr_token }}</code><p class="muted">Present your QR or member code to a club officer for verification.</p>
     </div>
     {% endif %}
   </article>

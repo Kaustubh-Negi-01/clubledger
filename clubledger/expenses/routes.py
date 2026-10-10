@@ -97,8 +97,10 @@ async def post_upload_receipt(
     expense_id: int,
     session: Annotated[Session, Depends(get_current_session)],
     file: UploadFile = File(...),
+    csrf_token: Annotated[str | None, Form()] = None,
 ) -> Response:
-    content = await file.read()
+    verify_csrf_token(session.csrf_token, csrf_token)
+    content = await file.read(5*1024*1024+1)
     content_type = file.content_type or "application/octet-stream"
 
     with unit_of_work(get_db_path()) as conn:
@@ -111,7 +113,9 @@ async def post_upload_receipt(
             mime_type=content_type,
         )
 
-    return JSONResponse({"id": r_id, "expense_id": expense_id}, status_code=201)
+    if 'application/json' in request.headers.get('accept', ''):
+        return JSONResponse({"id": r_id, "expense_id": expense_id}, status_code=201)
+    return RedirectResponse('/expenses?notice=Receipt+attached', status_code=303)
 
 
 @router.get("/receipts/{receipt_id}")
@@ -139,7 +143,7 @@ def download_receipt(
         path=str(file_path),
         media_type=mime,
         filename=original_name,
-        headers={"Content-Disposition": f'attachment; filename="{original_name}"', "X-Content-Type-Options": "nosniff"},
+        headers={"X-Content-Type-Options": "nosniff"},
     )
 
 
@@ -161,7 +165,9 @@ def post_approve_expense(
             decision_note=note,
         )
 
-    return JSONResponse({"expense_id": expense_id, "status": "APPROVED", "journal_entry_id": j_id})
+    if 'application/json' in request.headers.get('accept', ''):
+        return JSONResponse({"expense_id": expense_id, "status": "APPROVED", "journal_entry_id": j_id})
+    return RedirectResponse('/expenses?notice=Expense+approved', status_code=303)
 
 
 @router.post("/admin/expenses/{expense_id}/reject")
@@ -182,7 +188,9 @@ def post_reject_expense(
             decision_note=note,
         )
 
-    return JSONResponse({"expense_id": expense_id, "status": "REJECTED"})
+    if 'application/json' in request.headers.get('accept', ''):
+        return JSONResponse({"expense_id": expense_id, "status": "REJECTED"})
+    return RedirectResponse('/expenses?notice=Expense+rejected', status_code=303)
 
 
 @router.post("/admin/expenses/{expense_id}/pay")
@@ -201,4 +209,6 @@ def post_pay_expense(
             payer_user_id=session.user_id,
         )
 
-    return JSONResponse({"expense_id": expense_id, "status": "PAID", "journal_entry_id": j_id})
+    if 'application/json' in request.headers.get('accept', ''):
+        return JSONResponse({"expense_id": expense_id, "status": "PAID", "journal_entry_id": j_id})
+    return RedirectResponse('/expenses?notice=Reimbursement+recorded', status_code=303)

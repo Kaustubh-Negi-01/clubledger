@@ -118,7 +118,7 @@ def attach_receipt(
 
     submitter_id = row[0]
     if submitter_id != uploader_id:
-        raise DomainError("FORBIDDEN", 403, "Only the submitter can attach receipts to this expense")
+        raise DomainError("NOT_FOUND", 404, "Expense not found")
 
     stored_name, safe_original, size_bytes, sha256_hex = validate_and_save_receipt(
         file_content, original_filename, mime_type

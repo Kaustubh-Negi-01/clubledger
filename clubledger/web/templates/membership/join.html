@@ -5,6 +5,7 @@
 
 {% block content %}
 <section aria-labelledby="join-heading">
+  {% if memberships %}<article class="panel"><h2>Your membership history</h2>{% for m in memberships %}<div class="row-item"><div><strong>{{ m.plan_name }} · {{ m.membership_year }}</strong><small>{{ m.starts_at }} → {{ m.expires_at }}</small></div><span class="pill">{{ 'EXPIRED' if m.status=='ACTIVE' and m.expires_at<=now else m.status }}</span></div>{% endfor %}<p class="muted">Renewal opens 30 days before your membership expires. Renewals start exactly when the current membership ends.</p><a class="button secondary" href="/members/card">View current membership card</a></article>{% endif %}
   <h2 id="join-heading">Select a Membership Plan</h2>
   
   {% if error %}

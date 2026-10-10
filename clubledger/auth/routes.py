@@ -54,7 +54,7 @@ def get_register(request: Request) -> Response:
         request=request,
         name="auth/register.html",
         context={"csrf_token": csrf_token},
-        headers=dict(response.headers),
+        headers={key: value for key, value in response.headers.items() if key != "content-length"},
     )
 
 
@@ -93,7 +93,7 @@ def get_login(request: Request) -> Response:
         request=request,
         name="auth/login.html",
         context={"csrf_token": csrf_token},
-        headers=dict(response.headers),
+        headers={key: value for key, value in response.headers.items() if key != "content-length"},
     )
 
 
@@ -173,22 +173,20 @@ def get_me(
             raise DomainError("NOT_FOUND", 404, "User not found")
 
         # In H0-H2, no active membership exists for fresh user (AUTH-01)
+        from dataclasses import asdict
+        from clubledger.core.pricing import active_membership
+        from clubledger.core import clock
+        membership = active_membership(conn, session.user_id, clock.now())
         data = {
             "user": {"id": user["id"], "email": user["email"], "name": user["name"]},
-            "membership": None,
+            "membership": asdict(membership) if membership else None,
             "csrf_token": session.csrf_token,
         }
 
         if "application/json" in request.headers.get("accept", ""):
             return JSONResponse(data)
 
-        return templates.TemplateResponse(
-            request=request,
-            name="auth/me.html",
-            context={
-                "user": user,
-                "csrf_token": session.csrf_token,
-            },
-        )
+        from clubledger.web.routes import dashboard
+        return dashboard(request, session)
     finally:
         conn.close()

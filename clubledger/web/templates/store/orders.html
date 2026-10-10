@@ -23,7 +23,7 @@
         {% endif %}
       </p>
 
-      <table class="order-items-table" aria-label="Items for Order #{{ item.order.id }}">
+      <div class="table-wrap"><table class="order-items-table" aria-label="Items for Order #{{ item.order.id }}">
         <thead>
           <tr>
             <th scope="col">Product</th>
@@ -42,7 +42,7 @@
           </tr>
           {% endfor %}
         </tbody>
-      </table>
+      </table></div>
 
       {% if item.order.status in ['RESERVED', 'PAID'] %}
       <div class="order-actions">

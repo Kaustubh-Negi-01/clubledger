@@ -570,8 +570,9 @@ def test_regression_duplicate_and_wrong_event_checkin(
         f"/checkin/{e2['id']}/scan",
         data={"code": ticket_code, "csrf_token": staff_csrf},
     )
-    assert resp_wrong.status_code == 200
+    assert resp_wrong.status_code == 422
     assert "Ticket is for another event" in resp_wrong.text
+    assert db.execute('SELECT status FROM tickets WHERE code=?', (ticket_code,)).fetchone()[0] == 'ISSUED'
 
     # 2. Scan ticket at Concert A door -> OK (First scan)
     resp_ok = app_client.post(
@@ -580,11 +581,13 @@ def test_regression_duplicate_and_wrong_event_checkin(
     )
     assert resp_ok.status_code == 200
     assert "Check-in confirmed" in resp_ok.text
+    first_admission = tuple(db.execute('SELECT used_at,used_by FROM tickets WHERE code=?', (ticket_code,)).fetchone())
 
     # 3. Scan same ticket again at Concert A door -> ALREADY_USED
     resp_dup = app_client.post(
         f"/checkin/{e1['id']}/scan",
         data={"code": ticket_code, "csrf_token": staff_csrf},
     )
-    assert resp_dup.status_code == 200
+    assert resp_dup.status_code == 409
     assert "already used" in resp_dup.text.lower()
+    assert tuple(db.execute('SELECT used_at,used_by FROM tickets WHERE code=?', (ticket_code,)).fetchone()) == first_admission

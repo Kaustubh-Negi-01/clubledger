@@ -32,6 +32,11 @@ MAX_RECEIPT_BYTES = 5 * 1024 * 1024  # 5 MB
 
 def get_receipts_storage_dir() -> Path:
     """Resolve receipts storage directory safely."""
+    override = os.environ.get('CLUBLEDGER_RECEIPTS_DIR')
+    if override:
+        receipts_dir = Path(override).resolve()
+        receipts_dir.mkdir(parents=True, exist_ok=True)
+        return receipts_dir
     config = get_config()
     data_dir = getattr(config, "data_dir", None)
     if not data_dir:

@@ -221,14 +221,14 @@ def get_ticket(
             raise DomainError("NOT_FOUND", 404, "Ticket not found")
 
         if ticket["user_id"] != session.user_id:
-            raise DomainError("FORBIDDEN", 403, "Access denied to ticket")
+            raise DomainError("NOT_FOUND", 404, "Ticket not found")
 
         qr_data = None
         try:
             import qrcode  # type: ignore[import-untyped]
             import io
 
-            qr = qrcode.QRCode(box_size=4, border=2)
+            qr = qrcode.QRCode(box_size=4, border=4)
             qr.add_data(ticket["code"])
             qr.make(fit=True)
             img = qr.make_image(fill_color="black", back_color="white")
@@ -293,6 +293,8 @@ def post_checkin_scan(
         event = conn.execute("SELECT * FROM events WHERE id = ?;", (event_id,)).fetchone()
         if not event:
             raise DomainError("NOT_FOUND", 404, "Event not found")
+        from clubledger.core.ratelimit import enforce_rate_limit
+        enforce_rate_limit(f'checkin:{session.user_id}', limit=120, window_seconds=60)
         result = check_in(conn, event_id=event_id, code=code, staff_id=session.user_id)
         status_code = 200
         if result.status == "ALREADY_USED":

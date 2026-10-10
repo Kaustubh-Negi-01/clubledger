@@ -46,11 +46,13 @@ def enforce_rate_limit(key: str, limit: int, window_seconds: int) -> None:
     """Check rate limit and raise DomainError('RATE_LIMITED', 429) if exceeded."""
     retry_after = check_rate_limit(key, limit, window_seconds)
     if retry_after is not None:
-        raise DomainError(
+        error = DomainError(
             "RATE_LIMITED",
             http_status=429,
             message=f"Rate limit exceeded. Try again in {retry_after} seconds.",
         )
+        error.retry_after = retry_after
+        raise error
 
 
 def reset_rate_limits() -> None:

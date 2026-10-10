@@ -287,8 +287,8 @@ def test_reserve_cart_idempotency_replay_and_conflict(db_conn):
             idempotency_key="idemp_key_store",
             create_payment_fn=mock_create_payment,
         )
-    assert exc_info.value.http_status == 409
-    assert exc_info.value.code == "CONFLICT"
+    assert exc_info.value.http_status == 422
+    assert exc_info.value.code == "IDEMPOTENCY_CONFLICT"
 
 
 def test_reserve_cart_missing_payment_dependency_raises_blocker(db_conn, monkeypatch):

@@ -67,7 +67,7 @@ def app_client(monkeypatch, tmp_path):
     conn.execute("INSERT INTO roles (id, code, created_at) VALUES (1, 'admin', ?);", (clock.now(),))
     conn.execute("INSERT INTO roles (id, code, created_at) VALUES (2, 'store_staff', ?);", (clock.now(),))
 
-    conn.execute("INSERT INTO permissions (id, code, created_at) VALUES (1, 'store.pickup', ?);", (clock.now(),))
+    conn.execute("INSERT INTO permissions (id, code, created_at) VALUES (1, 'store.fulfill', ?);", (clock.now(),))
     conn.execute("INSERT INTO permissions (id, code, created_at) VALUES (2, 'store.manage', ?);", (clock.now(),))
 
     conn.execute("INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES (2, 1, ?);", (clock.now(),))
@@ -86,7 +86,7 @@ def app_client(monkeypatch, tmp_path):
         "VALUES (2, 'bob@test.com', 'Bob Other', 'hash', 1, ?);",
         (clock.now(),),
     )
-    # User 3: Store staff (store.pickup)
+    # User 3: Store staff (store.fulfill)
     conn.execute(
         "INSERT INTO users (id, email, name, password_hash, is_active, created_at) "
         "VALUES (3, 'staff@test.com', 'Staff Pickup', 'hash', 1, ?);",
@@ -364,7 +364,7 @@ def test_post_order_pickup_staff_permission(app_client):
     )
     assert res_cust.status_code == 403
 
-    # Staff user (User 3 with store.pickup permission) logs in and marks pickup
+    # Staff user (User 3 with store.fulfill permission) logs in and marks pickup
     _, csrf_staff = _login_user(app_client, 3)
     res_staff = app_client.post(
         f"/admin/store/orders/{order_row['id']}/pickup",

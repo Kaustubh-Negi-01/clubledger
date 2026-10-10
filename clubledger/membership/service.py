@@ -72,7 +72,7 @@ def start_join(
     ).fetchone()
     if existing_key:
         if existing_key["request_hash"] != req_hash:
-            raise DomainError("CONFLICT", 409, "Idempotency key reused with different request parameters")
+            raise DomainError("IDEMPOTENCY_CONFLICT", 422, "Idempotency key reused with different request parameters")
         ref = existing_key["result_ref"]
         if ref.startswith("payment:"):
             pay_id = int(ref.split(":", 1)[1])
@@ -126,7 +126,7 @@ def start_join(
         if days_to_expiry > 30.0:
             raise DomainError(
                 "ALREADY_MEMBER",
-                409,
+                422 if any(r['membership_year']==curr_label and r['status']=='ACTIVE' for r in live_rows) else 409,
                 f"Already a member for {curr_label}; renewal opens 30 days before expiry",
             )
 
@@ -300,11 +300,8 @@ def lookup_member(
 
 def enqueue_renewal_reminders(conn: sqlite3.Connection, as_of: str) -> int:
     """Mark expired memberships and queue reminders per CONTRACT §1.3."""
-    cur = conn.execute(
-        "UPDATE memberships SET status = 'EXPIRED' WHERE status = 'ACTIVE' AND expires_at <= ?;",
-        (as_of,),
-    )
-    return cur.rowcount
+    from clubledger.comms.service import send_reminders
+    return send_reminders(conn,as_of)
 
 
 DUES_PURPOSE_HANDLER = PurposeHandler(

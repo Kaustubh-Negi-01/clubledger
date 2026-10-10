@@ -269,8 +269,8 @@ def test_create_hold_idempotency_different_parameters_conflict(db_conn):
             idempotency_key="idemp_conflict_key",
             create_payment_fn=mock_create_payment,
         )
-    assert exc.value.code == "CONFLICT"
-    assert exc.value.http_status == 409
+    assert exc.value.code == "IDEMPOTENCY_CONFLICT"
+    assert exc.value.http_status == 422
 
 
 def test_create_hold_replay_after_sold_out(db_conn):

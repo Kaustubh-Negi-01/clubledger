@@ -12,6 +12,8 @@ def now() -> str:
     """Return the current UTC timestamp formatted as YYYY-MM-DDTHH:MM:SSZ."""
     if _override_now is not None:
         return _override_now
+    if os.environ.get('CLUBLEDGER_ENV','dev') == 'dev' and os.environ.get('CLUBLEDGER_DEMO_TIME'):
+        return os.environ['CLUBLEDGER_DEMO_TIME']
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -50,6 +52,21 @@ def reset() -> None:
     """Reset the injected clock back to wall time."""
     global _override_now
     _override_now = None
+
+
+def advance_demo_day():
+    if os.environ.get('CLUBLEDGER_ENV','dev') not in ('dev','test'):
+        raise RuntimeError('Demo time is unavailable in production.')
+    next_time=(_parse_demo(now())+timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    if os.environ.get('CLUBLEDGER_ENV') == 'test':
+        set_now(next_time)
+    else:
+        os.environ['CLUBLEDGER_DEMO_TIME']=next_time
+    return next_time
+
+
+def _parse_demo(value):
+    return datetime.fromisoformat(value.replace('Z','+00:00'))
 
 
 def academic_year_bounds(instant: str) -> tuple[str, str, str]:

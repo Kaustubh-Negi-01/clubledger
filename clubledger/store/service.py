@@ -116,7 +116,7 @@ def reserve_cart(
     ).fetchone()
     if existing_key:
         if existing_key["request_hash"] != req_hash:
-            raise DomainError("CONFLICT", 409, "Idempotency key reused with different request parameters")
+            raise DomainError("IDEMPOTENCY_CONFLICT", 422, "Idempotency key reused with different request parameters")
 
         ref = existing_key["result_ref"]
         # Format: order:{order_id}:pay:{payment_id}

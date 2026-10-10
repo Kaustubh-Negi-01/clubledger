@@ -30,6 +30,7 @@ def get_join(request: Request, session: Session = Depends(get_current_session)) 
             "SELECT id, code, name, dues_paise, ticket_discount_bps, merch_discount_bps "
             "FROM membership_plans WHERE is_active = 1 ORDER BY dues_paise ASC;"
         ).fetchall()
+        memberships = conn.execute('SELECT m.*,p.name AS plan_name FROM memberships m JOIN membership_plans p ON p.id=m.plan_id WHERE m.user_id=? ORDER BY m.starts_at DESC', (session.user_id,)).fetchall()
         idemp_key = idgen.generate_idempotency_key()
         return templates.TemplateResponse(
             request=request,
@@ -38,6 +39,8 @@ def get_join(request: Request, session: Session = Depends(get_current_session)) 
                 "session": session,
                 "csrf_token": session.csrf_token,
                 "plans": plans,
+                "memberships": memberships,
+                "now": clock.now(),
                 "idempotency_key": idemp_key,
                 "error": None,
             },
@@ -85,6 +88,7 @@ def get_member_card(request: Request, session: Session = Depends(get_current_ses
                 "session": session,
                 "membership": row,
                 "now": now_str,
+                "qr_data": __import__('clubledger.web.qr',fromlist=['image_data']).image_data(row['qr_token']) if row else None,
             },
         )
     finally:
@@ -119,6 +123,8 @@ def post_verify_lookup(
 ) -> Response:
     """Lookup member by code or QR token (staff verification)."""
     verify_csrf(session, csrf_token)
+    from clubledger.core.ratelimit import enforce_rate_limit
+    enforce_rate_limit(f'verify:{session.user_id}', limit=60, window_seconds=60)
     conn = connect(get_db_path())
     try:
         result = lookup_member(conn, code=code.strip() if code else None, qr_token=qr_token.strip() if qr_token else None, at=clock.now())

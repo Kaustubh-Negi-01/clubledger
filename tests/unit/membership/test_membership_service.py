@@ -256,5 +256,5 @@ def test_start_join_idempotency_different_parameters_conflict(db_conn):
     with pytest.raises(DomainError) as exc:
         # Changed plan_id with same actor/action/key
         start_join(db_conn, user_id=1, plan_id=2, idempotency_key="same_join_key")
-    assert exc.value.code == "CONFLICT"
-    assert exc.value.http_status == 409
+    assert exc.value.code == "IDEMPOTENCY_CONFLICT"
+    assert exc.value.http_status == 422

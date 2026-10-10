@@ -56,7 +56,7 @@ def require_store_manage_or_pickup(
     conn = connect(get_db_path())
     try:
         perms = get_user_permissions(conn, session.user_id)
-        if "store.manage" not in perms and "store.pickup" not in perms:
+        if "store.manage" not in perms and "store.fulfill" not in perms:
             raise DomainError("FORBIDDEN", 403, "Missing store.manage or store.pickup permission")
         return session
     finally:

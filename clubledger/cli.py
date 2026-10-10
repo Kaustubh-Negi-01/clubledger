@@ -47,6 +47,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     integrity_parser = subparsers.add_parser("check-integrity", help="Run accounting and system integrity checks")
     integrity_parser.add_argument("--db", type=str, default=None, help="Path to SQLite database file")
 
+    for command in ('send-reminders', 'process-mail'):
+        command_parser = subparsers.add_parser(command)
+        command_parser.add_argument('--db', default=None)
+        command_parser.add_argument('--as-of', default=None)
+        if command == 'process-mail':
+            command_parser.add_argument('--limit', type=int, default=100)
+    reset_parser = subparsers.add_parser('reset-db', help='Dev/test only: preserve a backup and recreate the explicitly confirmed database')
+    reset_parser.add_argument('--db', default=None)
+    reset_parser.add_argument('--confirm', required=True)
+
     return parser.parse_args(argv)
 
 
@@ -181,6 +191,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
         if env == "test":
             clock.set_now(args.as_of)
+        elif env == 'dev':
+            from datetime import datetime, timezone
+            value=datetime.fromisoformat(args.as_of.replace('Z','+00:00'))
+            if value.tzinfo is None:
+                value=value.replace(tzinfo=timezone.utc)
+            os.environ['CLUBLEDGER_DEMO_TIME']=value.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
     target_db = getattr(args, "db", None)
 
@@ -196,6 +212,38 @@ def main(argv: Sequence[str] | None = None) -> int:
         return handle_expire_holds(target_db, args.as_of)
     if args.command == "check-integrity":
         return handle_check_integrity(target_db)
+    if args.command in ('send-reminders', 'process-mail'):
+        from clubledger.comms.service import send_reminders, process_mail_outbox
+        with unit_of_work(target_db) as conn:
+            if args.command == 'process-mail' and not 1 <= args.limit <= 1000:
+                print('Mail limit must be between 1 and 1000.', file=sys.stderr)
+                return 1
+            count = send_reminders(conn, args.as_of) if args.command == 'send-reminders' else process_mail_outbox(conn, limit=args.limit)
+        print(f'Processed {count} items locally.')
+        return 0
+    if args.command == 'reset-db':
+        from pathlib import Path
+        import secrets
+        if get_config().env not in ('dev','test'):
+            print('reset-db is dev/test only.', file=sys.stderr)
+            return 1
+        path = Path(target_db or get_config().db_path).resolve()
+        if str(path) != args.confirm or path.suffix != '.db' or path.is_dir():
+            print('Confirm the exact absolute .db path.', file=sys.stderr)
+            return 1
+        if path.exists():
+            # Backup with SQLite to include WAL data, then retain the original as a backup.
+            import sqlite3
+            from contextlib import closing
+            backup_path = path.with_name(path.name+'.backup-'+secrets.token_hex(4))
+            with closing(sqlite3.connect(str(path))) as source, closing(sqlite3.connect(str(backup_path))) as destination:
+                source.backup(destination)
+            for suffix in ('','-wal','-shm'):
+                file = Path(str(path)+suffix)
+                if file.exists():
+                    file.unlink()
+        handle_migrate(str(path))
+        return handle_seed(str(path))
 
     print(f"Unknown command: {args.command}", file=sys.stderr)
     return 1

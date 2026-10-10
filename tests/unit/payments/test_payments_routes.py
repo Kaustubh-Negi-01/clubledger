@@ -76,7 +76,7 @@ def test_get_pay_route_auth_and_ownership(setup_routes_db):
     client.cookies.set(COOKIE_SESSION, token1)
     resp_owner = client.get(f"/pay/{public_id}")
     assert resp_owner.status_code == 200
-    assert "SIMULATED PAYMENT GATEWAY" in resp_owner.text
+    assert "simulated payment gateway" in resp_owner.text.lower()
 
     # Check status changed from CREATED to PENDING
     conn = connect(db_path)

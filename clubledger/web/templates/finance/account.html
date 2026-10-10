@@ -1,21 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>{{ drilldown.title }} - Skyline Student Association</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { font-family: sans-serif; margin: 2rem; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
-    th { background: #f4f4f4; }
-  </style>
-</head>
-<body>
-  <h1>{{ drilldown.title }}</h1>
+{% extends 'base.html' %}{% block title %}{{ drilldown.title }} · ClubLedger{% endblock %}{% block header_title %}{{ drilldown.title }}{% endblock %}{% block content %}
+
   <p><a href="/finance">← Back to Finance</a></p>
   <p><strong>Total Net Paise:</strong> ₹{{ drilldown.total_paise / 100 }}</p>
-  <table>
+  <div class="table-wrap"><table>
     <thead>
       <tr>
         <th>Entry ID</th>
@@ -44,6 +31,5 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
-</body>
-</html>
+  </table></div>
+{% endblock %}

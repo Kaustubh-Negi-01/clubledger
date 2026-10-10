@@ -319,7 +319,7 @@ def test_ticket_view_ownership_and_security(app_client, monkeypatch):
     # Bob (non-owner) access -> 403 Forbidden
     app_client.cookies.set(COOKIE_SESSION, raw_token_bob)
     res_bob = app_client.get(f"/tickets/{ticket_id}")
-    assert res_bob.status_code == 403
+    assert res_bob.status_code == 404
 
 
 def test_checkin_flow_and_permission(app_client):
@@ -403,8 +403,8 @@ def test_hold_post_idempotency_conflict_different_parameters(app_client):
         },
         follow_redirects=False,
     )
-    assert res2.status_code == 409
-    assert res2.json()["code"] == "CONFLICT"
+    assert res2.status_code == 422
+    assert res2.json()["code"] == "IDEMPOTENCY_CONFLICT"
 
 
 def test_admin_event_report_permission(app_client):

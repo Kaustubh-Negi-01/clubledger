@@ -141,7 +141,7 @@ def create_hold(
     ).fetchone()
     if existing_key:
         if existing_key["request_hash"] != req_hash:
-            raise DomainError("CONFLICT", 409, "Idempotency key reused with different request parameters")
+            raise DomainError("IDEMPOTENCY_CONFLICT", 422, "Idempotency key reused with different request parameters")
 
         ref = existing_key["result_ref"]
         # Format: hold:{hold_id}:free or hold:{hold_id}:pay:{payment_id}
