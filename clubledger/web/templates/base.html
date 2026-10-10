@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ClubLedger{% endblock %}</title>
+  {% block head %}{% endblock %}
+</head>
+<body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+  <header>
+    <h1>{% block header_title %}ClubLedger{% endblock %}</h1>
+    <nav aria-label="Main Navigation">
+      {% block nav %}{% endblock %}
+    </nav>
+  </header>
+
+  <main id="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    {% block footer %}{% endblock %}
+  </footer>
+
+  {% block scripts %}
+  <script src="/static/htmx.min.js"></script>
+  {% endblock %}
+</body>
+</html>
