@@ -175,8 +175,13 @@ def app_client(monkeypatch, tmp_path):
     clock.reset()
 
 
-def test_public_events_list(app_client):
-    # Public route: no auth required
+def test_signed_in_events_list(app_client):
+    from clubledger.config import get_db_path
+
+    conn = connect(get_db_path())
+    token, _ = create_session(conn, 1)
+    conn.close()
+    app_client.cookies.set(COOKIE_SESSION, token)
     res = app_client.get("/events")
     assert res.status_code == 200
     assert "Annual Gala" in res.text
@@ -185,13 +190,18 @@ def test_public_events_list(app_client):
     assert "Secret Gala" not in res.text
 
 
-def test_public_event_detail(app_client):
-    # Public route: detail of on-sale event
+def test_signed_in_event_detail(app_client):
+    from clubledger.config import get_db_path
+
+    conn = connect(get_db_path())
+    token, _ = create_session(conn, 1)
+    conn.close()
+    app_client.cookies.set(COOKIE_SESSION, token)
     res = app_client.get("/events/1")
     assert res.status_code == 200
     assert "Annual Gala" in res.text
     assert "Grand Hall" in res.text
-    assert "Log In to Book" in res.text
+    assert "Reserve Tickets" in res.text
 
     # Detail of draft event returns 404
     res_draft = app_client.get("/events/3")
@@ -342,7 +352,9 @@ def test_ticket_view_ownership_and_security(app_client, monkeypatch):
 
     # Anonymous access -> 401
     app_client.cookies.clear()
-    res_anon = app_client.get(f"/tickets/{ticket_id}")
+    res_anon = app_client.get(
+        f"/tickets/{ticket_id}", headers={"Accept": "application/json"}
+    )
     assert res_anon.status_code == 401
 
     # Alice (owner) access -> 200 OK

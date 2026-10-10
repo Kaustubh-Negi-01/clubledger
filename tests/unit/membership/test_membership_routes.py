@@ -113,7 +113,7 @@ def app_client(monkeypatch, tmp_path):
 
 
 def test_join_get_requires_auth(app_client):
-    res = app_client.get("/join")
+    res = app_client.get("/join", headers={"Accept": "application/json"})
     assert res.status_code == 401
 
 

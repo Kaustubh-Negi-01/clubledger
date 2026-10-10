@@ -1,5 +1,23 @@
 """Run the same first-slice and semester regressions against real PostgreSQL."""
 
+
+def test_cloud_signed_out_boundary_and_demo_hints(app_client, monkeypatch):
+    monkeypatch.setenv("CLUBLEDGER_ENV", "prod")
+    monkeypatch.setenv("CLUBLEDGER_DEMO_ACCOUNTS", "1")
+    for path in ("/events", "/store", "/announcements"):
+        response = app_client.get(path, follow_redirects=False)
+        assert response.status_code == 303
+        assert response.headers["location"] == "/auth/login"
+        assert (
+            app_client.get(path, headers={"Accept": "application/json"}).status_code
+            == 401
+        )
+    login = app_client.get("/auth/login")
+    assert login.status_code == 200
+    assert "student@skyline.edu" in login.text
+    assert "DemoPassword123!" in login.text
+
+
 from tests.e2e.test_first_slice import (
     test_first_vertical_slice_happy_path,
     test_first_vertical_slice_failed_dues_negative_flow,

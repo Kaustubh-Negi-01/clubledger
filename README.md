@@ -65,3 +65,7 @@ Original planning documents (`CONTRACT.md`, `REQUIREMENTS.md`, `BUILD_ORDER.md`)
 ## Assets
 
 Campus illustrations are original. Space Grotesk is served locally under the SIL Open Font License in `frontend/static/fonts/OFL.txt`. HTMX vendor source and its license are kept in `frontend/static/vendor/`, but the current app does not load it.
+
+## Login-only club workspace
+
+All club pages require sign-in, including events, merchandise and announcements. The hosted demo explicitly enables demo-account hints without disabling production cookies or permission checks. The login-boundary correction passed 245 local tests and a separate real Supabase boundary test.

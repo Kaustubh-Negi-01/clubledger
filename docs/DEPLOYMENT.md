@@ -68,3 +68,9 @@ The runtime login has no permission to create test schemas. Do not use the produ
 - Restricted runtime role: demo login, simulated ticket payment and persistent issued ticket verified; student and administrator pages returned 200.
 - Database role checks: no schema CREATE privilege, zero application tables without RLS, zero browser-role table grants.
 - Existing local SQLite data was not migrated or reset.
+
+## Hosted demo login
+
+This demo sets `CLUBLEDGER_DEMO_ACCOUNTS=1` so reviewers can see the synthetic demo-account emails and password on the login page while `CLUBLEDGER_ENV=prod` remains enabled. All club content, including event listings, the store and announcements, requires login. Signed-out HTML requests redirect to `/auth/login`; JSON requests receive 401. Login, registration, static assets, health checks, signed payment callbacks and subscription opt-out links retain their dedicated public boundaries.
+
+Login-boundary correction: 245 local tests passed; the new real Supabase boundary test passed. Signed-out browser redirects, JSON 401 responses, demo hints and production-only restrictions have dedicated regression tests.

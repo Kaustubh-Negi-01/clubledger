@@ -63,7 +63,9 @@ def test_get_pay_route_auth_and_ownership(setup_routes_db):
     client = TestClient(app)
 
     # 1. Unauthenticated -> 401
-    resp_unauth = client.get(f"/pay/{public_id}")
+    resp_unauth = client.get(
+        f"/pay/{public_id}", headers={"Accept": "application/json"}
+    )
     assert resp_unauth.status_code == 401
 
     # 2. Authenticated foreign user -> 404 (CONTRACT §4.2)

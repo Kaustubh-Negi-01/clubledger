@@ -129,7 +129,7 @@ def test_finance_endpoints_auth_protection(app_and_db):
     client, admin_token, member_token = app_and_db
 
     # 1. No session cookie -> 401
-    resp = client.get("/finance")
+    resp = client.get("/finance", headers={"Accept": "application/json"})
     assert resp.status_code == 401
 
     # 2. Member without finance.view -> 403

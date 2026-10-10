@@ -28,3 +28,5 @@ The simulator signature secret is a shared secret, not a paid-provider API key. 
 ## Hosted environment
 
 Vercel stores the database URL and simulator secret as server-only sensitive variables. Production uses `CLUBLEDGER_ENV=prod`. No Supabase service credential or database password belongs in frontend code. See [the deployment guide](../docs/DEPLOYMENT.md).
+
+`CLUBLEDGER_DEMO_ACCOUNTS=1` displays the seeded demo-account hints on login independently of production mode. It does not bypass authentication, CSRF, permissions or enable development routes. Club pages require a valid session; signed-out browsers redirect to login and JSON requests receive 401.

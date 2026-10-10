@@ -149,7 +149,8 @@ def _login_user(client: TestClient, user_id: int) -> tuple[str, str]:
         conn.close()
 
 
-def test_get_store_catalog_public(app_client):
+def test_get_store_catalog_signed_in(app_client):
+    _login_user(app_client, 1)
     res = app_client.get("/store")
     assert res.status_code == 200
     assert "Official Merchandise" in res.text
@@ -164,12 +165,13 @@ def test_get_store_catalog_public(app_client):
     assert "Size M" in visible_text
 
 
-def test_get_product_detail_public_and_404(app_client):
+def test_get_product_detail_signed_in_and_404(app_client):
+    _login_user(app_client, 1)
     # Valid product
     res = app_client.get("/store/1")
     assert res.status_code == 200
     assert "Club Classic Hoodie" in res.text
-    assert "Log in" in res.text  # Anonymous user prompted to log in
+    assert "Reserve &amp; Proceed to Payment" in res.text
 
     # Authenticated user sees form
     _login_user(app_client, 1)

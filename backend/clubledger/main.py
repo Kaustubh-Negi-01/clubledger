@@ -37,6 +37,27 @@ def create_app() -> FastAPI:
         if request.url.path == "/webhooks/payments":
             return await call_next(request)
         request.state.ui = viewer(request)
+        # Club content requires a valid session even when a domain route also
+        # supports public browsing. Auth forms and email opt-out links remain open.
+        public_page = request.url.path in (
+            "/auth/login",
+            "/auth/register",
+            "/subscribe",
+        ) or request.url.path.startswith("/unsubscribe/")
+        if (
+            request.method in ("GET", "HEAD")
+            and not public_page
+            and not request.state.ui["user"]
+        ):
+            if "application/json" in request.headers.get("accept", ""):
+                return JSONResponse(
+                    {"code": "AUTH_REQUIRED", "message": "Sign in to continue."},
+                    status_code=401,
+                    headers={"Cache-Control": "no-store"},
+                )
+            return RedirectResponse(
+                "/auth/login", status_code=303, headers={"Cache-Control": "no-store"}
+            )
         # Page templates receive account data here, rather than querying SQLite.
         cookie_response = Response()
         request.state.pre_csrf = ensure_pre_session_csrf(request, cookie_response)

@@ -94,8 +94,9 @@ def test_publish_and_capture_are_exactly_once(db, make_user, clock):
 
 @pytest.mark.req("COM-01", "neg")
 @pytest.mark.req("SEC-02", "pos")
-def test_drafts_private_and_published_content_escaped(app_client, db, make_user):
+def test_drafts_private_and_published_content_escaped(app_client, db, make_user, login_as):
     author = make_user(email="escape@college.edu")
+    login_as(author)
     draft = comms.create_announcement(
         db, author["id"], "Hidden draft", "<script>alert(1)</script>"
     )

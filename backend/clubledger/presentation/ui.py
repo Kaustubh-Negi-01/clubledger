@@ -2,6 +2,7 @@
 """Shared page context; navigation and account information come from live data."""
 
 from pathlib import Path
+import os
 from fastapi.templating import Jinja2Templates
 from clubledger.core.auth import COOKIE_SESSION, load_session, get_user_permissions
 from clubledger.core.db import connect
@@ -36,6 +37,10 @@ def viewer(request):
             if session
             else set(),
             env=get_env(),
+            show_demo_accounts=os.environ.get(
+                "CLUBLEDGER_DEMO_ACCOUNTS", "1" if get_env() != "prod" else "0"
+            )
+            == "1",
             cloud_database=getattr(conn, "dialect", None) == "postgres",
             now=clock.now(),
             main_navigation=MAIN_NAVIGATION,
