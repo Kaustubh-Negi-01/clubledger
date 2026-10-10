@@ -8,7 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # A root .env is optional. Explicit shell settings always take priority.
-load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
+load_dotenv(Path(__file__).resolve().parents[3] / ".env", override=False)
 
 
 @dataclass(frozen=True)
@@ -30,7 +30,9 @@ def get_env() -> str:
 
 
 def get_db_path() -> str:
-    return os.environ.get("CLUBLEDGER_DB_PATH", "database/runtime/clubledger.db")
+    return os.environ.get("CLUBLEDGER_DATABASE_URL") or os.environ.get(
+        "CLUBLEDGER_DB_PATH", "database/runtime/clubledger.db"
+    )
 
 
 def get_sim_secret() -> str:

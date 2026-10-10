@@ -1,4 +1,4 @@
-# Database: SQLite schema and local storage
+# Database: local SQLite and cloud PostgreSQL
 
 `migrations/` contains the SQL files that create tables, indexes and triggers. `runtime/` holds local databases, generated simulator secrets and receipt uploads; its contents are ignored by Git.
 
@@ -36,3 +36,7 @@ Migration contents were deliberately preserved byte-for-byte during reorganizati
 The preview has 35 application tables. The schema export in `docs/DATABASE_STRUCTURE.md` lists exact columns, relationships and SQL. It contains no private record contents.
 
 Run `python -m clubledger.cli migrate` to apply pending migrations. `check-integrity` validates accounting links and balances; it does not reset data.
+
+## Hosted database
+
+`postgres/` contains checked-in PostgreSQL migrations for the Supabase deployment. Files 0001–0010 mirror the local domains and protections; 0011 adds persistent receipt contents and shared rate-limit attempts. The cloud uses the private `clubledger` schema and a restricted backend login. See [deployment details](../docs/DEPLOYMENT.md). Setting `CLUBLEDGER_DATABASE_URL` selects PostgreSQL; leaving it unset preserves the SQLite workflow.

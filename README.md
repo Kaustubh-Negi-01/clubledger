@@ -1,5 +1,7 @@
 # ClubLedger
 
+**[Open the live demo](https://clubledger-gold.vercel.app)** · Hosted on Vercel with a private Supabase PostgreSQL database.
+
 A student association workspace for memberships, events, merchandise, tasks, expenses and financial records.
 
 **New to the code? Start with [the beginner guide](docs/START_HERE.md).** Then open the [file-by-file map](docs/FILE_GUIDE.md) or [reviewer preparation notes](docs/REVIEWER_PREPARATION.md).
@@ -40,13 +42,13 @@ python -m ruff check backend tests
 python -m tests.req_coverage --mode progress
 ```
 
-Use your virtual environment's Python. The reorganized project passed 222 tests, with one existing Starlette/HTTPx deprecation warning. See `docs/REORGANIZATION.md` for verification details.
+Use your virtual environment's Python. The Supabase release passed 227 local tests (14 cloud-only cases skipped in that run), plus all 14 selected cloud acceptance cases across two runs against isolated Supabase schemas. Ruff passed. One existing Starlette/HTTPx deprecation warning remains. See `docs/DEPLOYMENT.md` for hosting and verification details.
 
 ## Features and boundaries
 
 The app covers membership cards and discounts, ticket reservations and admission, stock reservations and pickup, task boards, receipt-backed reimbursements, announcements, a double-entry journal, financial reports, semester snapshots and officer handover.
 
-Payments and email are **local simulations**. There is no real card charge, email delivery service or runtime AI API. The requirement evidence tracker is separate from the passing test count: 20/110 requirements were marked implemented before reorganization, with final certification incomplete.
+Payments and email are **simulations**, including on the hosted demo. There is no real card charge, email delivery service or runtime AI API. The requirement evidence tracker is separate from the passing test count: 20/110 requirements were marked implemented before reorganization, with final certification incomplete.
 
 ## Documentation
 
@@ -56,6 +58,7 @@ Payments and email are **local simulations**. There is no real card charge, emai
 - [Database structure](docs/DATABASE_STRUCTURE.md)
 - [Reviewer questions and code walkthroughs](docs/REVIEWER_PREPARATION.md)
 - [What moved and how it was verified](docs/REORGANIZATION.md)
+- [Supabase and Vercel deployment](docs/DEPLOYMENT.md)
 
 Original planning documents (`CONTRACT.md`, `REQUIREMENTS.md`, `BUILD_ORDER.md`) remain under `docs/`; historical paths in them may refer to the old layout. The new file guide describes the actual folder layout.
 

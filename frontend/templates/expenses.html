@@ -140,7 +140,7 @@
                 class="inline-form expenses-layout-1">
                     <input type="hidden" name="csrf_token" value="{{ request.state.ui.csrf }}">
                     <label for="receipt-{{ e.id }}">
-                        Attach receipt (PNG, JPEG or PDF, ≤5 MB)
+                        Attach receipt (PNG, JPEG or PDF, ≤{{ 3 if request.state.ui.cloud_database else 5 }} MB)
                     </label>
                     <input id="receipt-{{ e.id }}"
                     type="file"

@@ -32,7 +32,7 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def page_context(request: Request, call_next):
         # Assets need no account lookup; webhooks use their separate signature check.
-        if request.url.path.startswith("/static/"):
+        if request.url.path.startswith("/static/") or request.url.path == "/health":
             return await call_next(request)
         if request.url.path == "/webhooks/payments":
             return await call_next(request)
@@ -138,6 +138,18 @@ def create_app() -> FastAPI:
             if hasattr(exc, "retry_after")
             else None,
         )
+
+    @app.get("/health", include_in_schema=False)
+    def health():
+        from clubledger.core.db import connect
+        from clubledger.config import get_db_path
+
+        conn = connect(get_db_path())
+        try:
+            conn.execute("SELECT 1 FROM terms LIMIT 1").fetchone()
+            return {"status": "ok"}
+        finally:
+            conn.close()
 
     # Static assets
     @app.exception_handler(RequestValidationError)

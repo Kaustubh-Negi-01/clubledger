@@ -52,6 +52,8 @@ def validate_and_save_receipt(
     content: bytes,
     original_filename: str,
     declared_mime: str,
+    *,
+    database_storage: bool = False,
 ) -> Tuple[str, str, int, str]:
     """Validate content, sniff magic bytes, and store securely.
 
@@ -59,11 +61,12 @@ def validate_and_save_receipt(
     Raises DomainError("UPLOAD_REJECTED", 422) on any validation failure.
     """
     size_bytes = len(content)
-    if size_bytes < 1 or size_bytes > MAX_RECEIPT_BYTES:
+    limit = 3 * 1024 * 1024 if database_storage else MAX_RECEIPT_BYTES
+    if size_bytes < 1 or size_bytes > limit:
         raise DomainError(
             "UPLOAD_REJECTED",
             422,
-            f"Receipt size {size_bytes} out of allowed bounds (1 to 5MB)",
+            f"Receipt size {size_bytes} out of allowed bounds (1 to {limit // (1024 * 1024)}MB)",
         )
 
     if declared_mime not in ALLOWED_MIMES:
@@ -105,11 +108,11 @@ def validate_and_save_receipt(
     random_hex = secrets.token_hex(16)
     stored_name = f"{random_hex}{ext}"
 
-    storage_dir = get_receipts_storage_dir()
-    target_path = storage_dir / stored_name
-
-    # Write file securely
-    target_path.write_bytes(content)
+    # Cloud bytes are saved by attach_receipt in the same DB transaction as metadata.
+    if not database_storage:
+        storage_dir = get_receipts_storage_dir()
+        target_path = storage_dir / stored_name
+        target_path.write_bytes(content)
 
     return stored_name, safe_name, size_bytes, sha256_hex
 

@@ -720,3 +720,12 @@ Each `tests/unit/<feature>/test_*.py` file checks the feature named by its folde
 - `frontend/static/campus-string-lights.svg`: original overlapping warm festival-light strands across the top of the ticket checkout; no animation or payment logic.
 
 - `frontend/static/checkout-line-art.svg`: decorative campus arches, flowing lines and botanicals with soft offset shadows behind checkout content.
+
+## Cloud deployment additions
+
+- `backend/server.py`: exports FastAPI for Vercel.
+- `backend/clubledger/core/postgres.py`: Supabase connections, transactions, row compatibility and checked migrations.
+- `database/postgres/`: PostgreSQL counterparts of SQLite migrations, plus persistent cloud receipt bytes and rate-limit attempts.
+- `tests/cloud/`: isolated real PostgreSQL acceptance flows; skipped when the test credential is absent.
+- `vercel.json`, `.python-version`, `.vercelignore`: cloud framework, region, runtime and upload exclusions.
+- `docs/DEPLOYMENT.md`: hosting, credentials, receipt storage and release checks.

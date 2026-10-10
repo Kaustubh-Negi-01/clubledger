@@ -63,3 +63,7 @@ database/runtime/*
 *.db-shm
 *.sqlite-wal
 *.sqlite-shm
+
+# Cloud CLI links and credentials
+.vercel/
+supabase/.temp/

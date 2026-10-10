@@ -25,6 +25,44 @@ def check_rate_limit(key: str, limit: int, window_seconds: int) -> int | None:
     Returns None if request is within limit, or retry_after seconds if rate-limited.
     """
     now_dt = _get_current_dt()
+    from clubledger.config import get_db_path
+
+    path = get_db_path()
+    if path.startswith(("postgresql://", "postgres://")):
+        from clubledger.core.postgres import Connection
+        import hashlib
+
+        now = now_dt.timestamp()
+        conn = Connection(path)
+        # A separate bucket lock avoids waiting on the booking transaction that
+        # may already be running in this request. The two-key lock namespace is
+        # independent of the ledger's single-key writer lock.
+        bucket_lock = int.from_bytes(
+            hashlib.sha256(key.encode()).digest()[:4], "big", signed=True
+        )
+        try:
+            with conn.raw.transaction():
+                conn._setup(write=False)
+                conn.raw.execute(
+                    "SELECT pg_advisory_xact_lock(%s, %s)", (7341, bucket_lock)
+                )
+                conn.execute(
+                    "DELETE FROM rate_limit_attempts WHERE bucket=? AND attempted_at<=?",
+                    (key, now - window_seconds),
+                )
+                row = conn.execute(
+                    "SELECT COUNT(*) AS attempts, MIN(attempted_at) AS oldest FROM rate_limit_attempts WHERE bucket=?",
+                    (key,),
+                ).fetchone()
+                if row["attempts"] >= limit:
+                    return max(1, int(row["oldest"] + window_seconds - now))
+                conn.execute(
+                    "INSERT INTO rate_limit_attempts(bucket,attempted_at) VALUES(?,?)",
+                    (key, now),
+                )
+            return None
+        finally:
+            conn.close()
     timestamps = _buckets.get(key, [])
 
     # Retain only timestamps within the window

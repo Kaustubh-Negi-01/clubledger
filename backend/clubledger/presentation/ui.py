@@ -36,6 +36,7 @@ def viewer(request):
             if session
             else set(),
             env=get_env(),
+            cloud_database=getattr(conn, "dialect", None) == "postgres",
             now=clock.now(),
             main_navigation=MAIN_NAVIGATION,
             operations_navigation=OPERATIONS_NAVIGATION,

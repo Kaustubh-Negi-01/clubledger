@@ -47,7 +47,7 @@ def _extract_field(obj: Any, key: str) -> Any:
         if key not in obj:
             raise DomainError("VALIDATION", 422)
         return obj[key]
-    if isinstance(obj, sqlite3.Row):
+    if isinstance(obj, sqlite3.Row) or hasattr(obj, "keys"):
         try:
             return obj[key]
         except (IndexError, KeyError):

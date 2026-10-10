@@ -169,6 +169,24 @@ def download_receipt(
         if session.user_id != uploader_id and "receipts.view_all" not in perms:
             raise DomainError("NOT_FOUND", 404, "Receipt not found")
 
+        if getattr(conn, "dialect", None) == "postgres":
+            from urllib.parse import quote
+
+            content = conn.execute(
+                "SELECT content FROM receipt_content WHERE stored_name=?",
+                (stored_name,),
+            ).fetchone()
+            if not content:
+                raise DomainError("NOT_FOUND", 404, "Receipt file not found")
+            return Response(
+                content=bytes(content[0]),
+                media_type=mime,
+                headers={
+                    "X-Content-Type-Options": "nosniff",
+                    "Content-Disposition": "attachment; filename*=UTF-8''"
+                    + quote(original_name, safe=""),
+                },
+            )
     file_path = resolve_receipt_file(stored_name)
     return FileResponse(
         path=str(file_path),

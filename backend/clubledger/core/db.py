@@ -28,6 +28,10 @@ def connect(path: str) -> sqlite3.Connection:
     Uses autocommit=True so outer transactions can be explicitly controlled via
     BEGIN IMMEDIATE / COMMIT / ROLLBACK.
     """
+    if path.startswith(("postgresql://", "postgres://")):
+        from clubledger.core.postgres import Connection
+
+        return Connection(path)
     if path != ":memory:":
         db_file = Path(path)
         db_file.parent.mkdir(parents=True, exist_ok=True)
@@ -50,8 +54,8 @@ def unit_of_work(path: str | None = None) -> Iterator[sqlite3.Connection]:
     """
     db_path = path if path is not None else get_db_path()
     conn = connect(db_path)
-    conn.execute("BEGIN IMMEDIATE")
     try:
+        conn.execute("BEGIN IMMEDIATE")
         yield conn
         conn.execute("COMMIT")
     except Exception:
@@ -148,6 +152,12 @@ def apply_migrations(
       BEFORE applying anything.
     - If files is specified: test-only subset fixture mode applying exactly the named files.
     """
+    if getattr(conn, "dialect", None) == "postgres":
+        if files is not None or migrations_dir is not None:
+            raise ValueError("Use database/postgres migrations for PostgreSQL")
+        from clubledger.core.postgres import apply_postgres_migrations
+
+        return apply_postgres_migrations(conn)
     # 1. Determine migration files to consider
     dir_path = migrations_dir or _get_default_migrations_dir()
     migration_items: list[tuple[int, str, Path]] = []

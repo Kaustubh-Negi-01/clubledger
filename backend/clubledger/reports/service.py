@@ -552,7 +552,8 @@ def check_integrity(conn: sqlite3.Connection) -> dict[str, Any]:
                                          AND je.status = 'POSTED'
             WHERE e.status = 'PAID'
             GROUP BY e.id
-            HAVING approved_count <> 1 OR paid_count <> 1
+            HAVING COUNT(CASE WHEN je.source_event = 'approved' THEN 1 END) <> 1
+                OR COUNT(CASE WHEN je.source_event = 'paid' THEN 1 END) <> 1
             """
         )
         bad_expenses = e_cur.fetchall()

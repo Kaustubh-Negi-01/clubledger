@@ -135,7 +135,10 @@ def attach_receipt(
         raise DomainError("NOT_FOUND", 404, "Expense not found")
 
     stored_name, safe_original, size_bytes, sha256_hex = validate_and_save_receipt(
-        file_content, original_filename, mime_type
+        file_content,
+        original_filename,
+        mime_type,
+        database_storage=getattr(conn, "dialect", None) == "postgres",
     )
 
     now_ts = clock.now()
@@ -156,7 +159,13 @@ def attach_receipt(
             now_ts,
         ),
     )
-    return int(cur.lastrowid)
+    receipt_id = int(cur.lastrowid)
+    if getattr(conn, "dialect", None) == "postgres":
+        conn.execute(
+            "INSERT INTO receipt_content(stored_name,content) VALUES(?,?)",
+            (stored_name, file_content),
+        )
+    return receipt_id
 
 
 def approve_expense(
