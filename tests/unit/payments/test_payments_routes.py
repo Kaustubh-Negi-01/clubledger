@@ -258,7 +258,7 @@ def test_admin_payments_html_view_and_actions(setup_routes_db):
         follow_redirects=False,
     )
     assert ref_resp.status_code == 303
-    assert ref_resp.headers["location"] == "/admin/payments?problem=1"
+    assert ref_resp.headers["location"] == f"/admin/payments?refunded={pid}"
 
     # 3. POST resolve unapplied receipt (DISMISS with note)
     res_resp = client.post(

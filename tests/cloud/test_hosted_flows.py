@@ -43,3 +43,7 @@ from tests.e2e.test_failed_purchase_retry import (
     test_failed_merch_releases_stock_once_and_retry_succeeds,
     test_failed_ticket_releases_last_seat,
 )
+
+from tests.e2e.test_refund_navigation import (
+    test_refund_returns_all_payments_without_hiding_other_refunds,
+)

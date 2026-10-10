@@ -353,3 +353,15 @@
 .payments-pay-layout-1 {
     margin-top: 20px
 }
+.admin-container .filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-bottom: 24px;
+}
+
+.admin-container .filters a.active {
+  font-weight: 700;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 6px;
+}

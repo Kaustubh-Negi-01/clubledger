@@ -8,6 +8,9 @@
 {% endblock %}
 {% block content %}
     <div class="admin-container">
+        {% if refunded_payment_id %}
+            <p role="status">Payment #{{ refunded_payment_id }} refunded successfully. All payments are listed below; other eligible payments can still be refunded.</p>
+        {% endif %}
         <div class="filters">
             <a href="/admin/payments"
             class="{% if not problem and not unfulfilled and not unapplied %}active{% endif %}">
@@ -27,8 +30,11 @@
             </a>
         </div>
         <h2 class="section-title">
-            Payments
+            {{ 'Problem Queue' if problem else 'Unfulfilled Obligations' if unfulfilled else 'All Payments' }}
         </h2>
+        {% if problem %}
+            <p class="muted">This filtered view shows failed, expired or unfulfilled payments. Successful and refunded payments remain in <a href="/admin/payments">All Payments</a>.</p>
+        {% endif %}
         {% if payments %}
             <div class="table-wrap">
                 <table>

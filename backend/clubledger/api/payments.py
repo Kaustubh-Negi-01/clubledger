@@ -219,6 +219,7 @@ async def post_payment_webhook(
 @router.get("/admin/payments")
 def get_admin_payments(
     request: Request,
+    refunded: int | None = None,
     problem: bool = False,
     unfulfilled: bool = False,
     unapplied: bool = False,
@@ -253,6 +254,14 @@ def get_admin_payments(
             "problem": problem,
             "unfulfilled": unfulfilled,
             "unapplied": unapplied,
+            "refunded_payment_id": next(
+                (
+                    p["id"]
+                    for p in payments
+                    if p["id"] == refunded and p["status"] == "REFUNDED"
+                ),
+                None,
+            ),
         }
 
         if "application/json" in request.headers.get("accept", ""):
@@ -289,7 +298,9 @@ def post_admin_refund(
 
     if "application/json" in request.headers.get("accept", ""):
         return JSONResponse({"status": "ok", "refunded": payment_id})
-    return RedirectResponse(url="/admin/payments?problem=1", status_code=303)
+    return RedirectResponse(
+        url=f"/admin/payments?refunded={payment_id}", status_code=303
+    )
 
 
 @router.post("/admin/payments/{payment_id}/fulfill")
