@@ -1,83 +1,146 @@
 import sqlite3
-from pathlib import Path
 import pytest
 
-MIGRATIONS_DIR = Path(__file__).resolve().parents[3] / "migrations"
+from clubledger.core.db import apply_migrations, connect
 
 
-def get_db():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("PRAGMA foreign_keys = ON;")
-    # Minimal prerequisite mock schema for foreign keys (core users & terms, payments)
-    conn.executescript("""
-    CREATE TABLE users (
-      id INTEGER PRIMARY KEY, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
-      name TEXT NOT NULL, password_hash TEXT NOT NULL,
-      is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1)),
-      created_at TEXT NOT NULL
-    ) STRICT;
-    CREATE TABLE terms (
-      id INTEGER PRIMARY KEY, label TEXT NOT NULL UNIQUE, starts_at TEXT NOT NULL,
-      ends_at TEXT, status TEXT NOT NULL CHECK (status IN ('OPEN','CLOSED')),
-      closed_at TEXT, created_at TEXT NOT NULL
-    ) STRICT;
-    CREATE TABLE payments (
-      id INTEGER PRIMARY KEY, public_id TEXT NOT NULL UNIQUE,
-      user_id INTEGER NOT NULL REFERENCES users(id),
-      purpose TEXT NOT NULL, ref_table TEXT NOT NULL, ref_id INTEGER NOT NULL,
-      amount_paise INTEGER NOT NULL, currency TEXT NOT NULL,
-      status TEXT NOT NULL, fulfillment TEXT NOT NULL,
-      term_id INTEGER NOT NULL REFERENCES terms(id), created_at TEXT NOT NULL
-    ) STRICT;
-    """)
-    # Apply 0003_membership.sql
-    sql = (MIGRATIONS_DIR / "0003_membership.sql").read_text(encoding="utf-8")
-    conn.executescript(sql)
+def get_migrated_db() -> sqlite3.Connection:
+    conn = connect(":memory:")
+    applied = apply_migrations(conn)
+    assert applied == [1, 2, 3, 4, 5], f"Expected migrations 1..5, got {applied}"
+    # Verify idempotent rerun
+    rerun = apply_migrations(conn)
+    assert rerun == [], f"Expected empty rerun, got {rerun}"
     return conn
 
 
+def test_membership_clean_migration_and_idempotent_rerun():
+    conn = get_migrated_db()
+    # Verify schema_migrations has records for 0001 through 0005
+    rows = conn.execute(
+        "SELECT number, filename FROM schema_migrations ORDER BY number ASC;"
+    ).fetchall()
+    assert [r["number"] for r in rows] == [1, 2, 3, 4, 5]
+    assert rows[2]["filename"] == "0003_membership.sql"
+    conn.close()
+
+
 def test_membership_plan_and_creation():
-    conn = get_db()
-    conn.execute("INSERT INTO users VALUES (1, 'alice@test.com', 'Alice', 'hash', 1, '2026-10-10T00:00:00Z')")
-    conn.execute("INSERT INTO terms VALUES (1, 'Fall 2026', '2026-08-01T00:00:00Z', NULL, 'OPEN', NULL, '2026-08-01T00:00:00Z')")
-    conn.execute("INSERT INTO payments VALUES (1, 'pay_1', 1, 'DUES', 'memberships', 1, 1500, 'INR', 'SUCCEEDED', 'FULFILLED', 1, '2026-10-10T00:00:00Z')")
-    conn.execute("INSERT INTO membership_plans VALUES (1, 'STANDARD', 'Standard Plan', 1500, 2000, 1000, 1, '2026-10-10T00:00:00Z')")
-    
-    # Valid PENDING membership without member_code/qr_token
-    conn.execute("INSERT INTO memberships VALUES (1, 1, 1, '2026-27', 'PENDING', '2026-08-01T00:00:00Z', '2027-08-01T00:00:00Z', NULL, NULL, NULL, NULL, NULL, '2026-10-10T00:00:00Z')")
-    
-    cur = conn.execute("SELECT status, membership_year FROM memberships WHERE id = 1")
-    row = cur.fetchone()
-    assert row == ('PENDING', '2026-27')
+    conn = get_migrated_db()
+    try:
+        conn.execute(
+            "INSERT INTO users (id, email, name, password_hash, is_active, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?);",
+            (1, "alice@test.com", "Alice", "scrypt_hash", 1, "2026-10-10T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO terms (id, label, starts_at, ends_at, status, closed_at, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?);",
+            (1, "Fall 2026", "2026-08-01T00:00:00Z", None, "OPEN", None, "2026-08-01T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO payments (id, public_id, user_id, purpose, ref_table, ref_id, amount_paise, currency, status, fulfillment, term_id, succeeded_at, settled_at, refunded_at, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+            (1, "pay_1", 1, "DUES", "memberships", 1, 1500, "INR", "SUCCEEDED", "FULFILLED", 1, "2026-10-10T00:00:00Z", None, None, "2026-10-10T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO membership_plans (id, code, name, dues_paise, ticket_discount_bps, merch_discount_bps, is_active, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
+            (1, "STANDARD", "Standard Plan", 1500, 2000, 1000, 1, "2026-10-10T00:00:00Z"),
+        )
+
+        # Valid PENDING membership without member_code/qr_token
+        conn.execute(
+            "INSERT INTO memberships (id, user_id, plan_id, membership_year, status, starts_at, expires_at, member_code, qr_token, payment_id, verified_by, verified_at, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+            (1, 1, 1, "2026-27", "PENDING", "2026-08-01T00:00:00Z", "2027-08-01T00:00:00Z", None, None, None, None, None, "2026-10-10T00:00:00Z"),
+        )
+
+        row = conn.execute(
+            "SELECT status, membership_year FROM memberships WHERE id = 1;"
+        ).fetchone()
+        assert row["status"] == "PENDING"
+        assert row["membership_year"] == "2026-27"
+    finally:
+        conn.close()
 
 
 def test_membership_active_requires_code_and_token():
-    conn = get_db()
-    conn.execute("INSERT INTO users VALUES (1, 'alice@test.com', 'Alice', 'hash', 1, '2026-10-10T00:00:00Z')")
-    conn.execute("INSERT INTO membership_plans VALUES (1, 'STANDARD', 'Standard Plan', 1500, 2000, 1000, 1, '2026-10-10T00:00:00Z')")
-    
-    # ACTIVE with NULL member_code / qr_token must fail CHECK constraint
-    with pytest.raises(sqlite3.IntegrityError):
-        conn.execute("INSERT INTO memberships VALUES (1, 1, 1, '2026-27', 'ACTIVE', '2026-08-01T00:00:00Z', '2027-08-01T00:00:00Z', NULL, NULL, NULL, NULL, NULL, '2026-10-10T00:00:00Z')")
+    conn = get_migrated_db()
+    try:
+        conn.execute(
+            "INSERT INTO users (id, email, name, password_hash, is_active, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?);",
+            (1, "alice@test.com", "Alice", "scrypt_hash", 1, "2026-10-10T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO membership_plans (id, code, name, dues_paise, ticket_discount_bps, merch_discount_bps, is_active, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
+            (1, "STANDARD", "Standard Plan", 1500, 2000, 1000, 1, "2026-10-10T00:00:00Z"),
+        )
+
+        # ACTIVE with NULL member_code / qr_token must fail CHECK constraint
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO memberships (id, user_id, plan_id, membership_year, status, starts_at, expires_at, member_code, qr_token, payment_id, verified_by, verified_at, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                (1, 1, 1, "2026-27", "ACTIVE", "2026-08-01T00:00:00Z", "2027-08-01T00:00:00Z", None, None, None, None, None, "2026-10-10T00:00:00Z"),
+            )
+    finally:
+        conn.close()
 
 
 def test_membership_expiry_must_exceed_starts_at():
-    conn = get_db()
-    conn.execute("INSERT INTO users VALUES (1, 'alice@test.com', 'Alice', 'hash', 1, '2026-10-10T00:00:00Z')")
-    conn.execute("INSERT INTO membership_plans VALUES (1, 'STANDARD', 'Standard Plan', 1500, 2000, 1000, 1, '2026-10-10T00:00:00Z')")
-    
-    # expires_at <= starts_at must fail CHECK (expires_at > starts_at)
-    with pytest.raises(sqlite3.IntegrityError):
-        conn.execute("INSERT INTO memberships VALUES (1, 1, 1, '2026-27', 'PENDING', '2027-08-01T00:00:00Z', '2026-08-01T00:00:00Z', NULL, NULL, NULL, NULL, NULL, '2026-10-10T00:00:00Z')")
+    conn = get_migrated_db()
+    try:
+        conn.execute(
+            "INSERT INTO users (id, email, name, password_hash, is_active, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?);",
+            (1, "alice@test.com", "Alice", "scrypt_hash", 1, "2026-10-10T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO membership_plans (id, code, name, dues_paise, ticket_discount_bps, merch_discount_bps, is_active, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
+            (1, "STANDARD", "Standard Plan", 1500, 2000, 1000, 1, "2026-10-10T00:00:00Z"),
+        )
+
+        # expires_at <= starts_at must fail CHECK (expires_at > starts_at)
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO memberships (id, user_id, plan_id, membership_year, status, starts_at, expires_at, member_code, qr_token, payment_id, verified_by, verified_at, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                (1, 1, 1, "2026-27", "PENDING", "2027-08-01T00:00:00Z", "2026-08-01T00:00:00Z", None, None, None, None, None, "2026-10-10T00:00:00Z"),
+            )
+    finally:
+        conn.close()
 
 
 def test_membership_unique_live_per_academic_year():
-    conn = get_db()
-    conn.execute("INSERT INTO users VALUES (1, 'alice@test.com', 'Alice', 'hash', 1, '2026-10-10T00:00:00Z')")
-    conn.execute("INSERT INTO membership_plans VALUES (1, 'STANDARD', 'Standard Plan', 1500, 2000, 1000, 1, '2026-10-10T00:00:00Z')")
-    
-    conn.execute("INSERT INTO memberships VALUES (1, 1, 1, '2026-27', 'ACTIVE', '2026-08-01T00:00:00Z', '2027-08-01T00:00:00Z', 'M001', 'QR001', NULL, NULL, NULL, '2026-10-10T00:00:00Z')")
-    
-    # Second live (PENDING or ACTIVE) membership in same year for same user must violate UNIQUE index
-    with pytest.raises(sqlite3.IntegrityError):
-        conn.execute("INSERT INTO memberships VALUES (2, 1, 1, '2026-27', 'PENDING', '2026-08-01T00:00:00Z', '2027-08-01T00:00:00Z', NULL, NULL, NULL, NULL, NULL, '2026-10-10T00:00:00Z')")
+    conn = get_migrated_db()
+    try:
+        conn.execute(
+            "INSERT INTO users (id, email, name, password_hash, is_active, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?);",
+            (1, "alice@test.com", "Alice", "scrypt_hash", 1, "2026-10-10T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO membership_plans (id, code, name, dues_paise, ticket_discount_bps, merch_discount_bps, is_active, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
+            (1, "STANDARD", "Standard Plan", 1500, 2000, 1000, 1, "2026-10-10T00:00:00Z"),
+        )
+
+        conn.execute(
+            "INSERT INTO memberships (id, user_id, plan_id, membership_year, status, starts_at, expires_at, member_code, qr_token, payment_id, verified_by, verified_at, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+            (1, 1, 1, "2026-27", "ACTIVE", "2026-08-01T00:00:00Z", "2027-08-01T00:00:00Z", "M001", "QR001", None, None, None, "2026-10-10T00:00:00Z"),
+        )
+
+        # Second live (PENDING or ACTIVE) membership in same year for same user must violate UNIQUE index
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO memberships (id, user_id, plan_id, membership_year, status, starts_at, expires_at, member_code, qr_token, payment_id, verified_by, verified_at, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                (2, 1, 1, "2026-27", "PENDING", "2026-08-01T00:00:00Z", "2027-08-01T00:00:00Z", None, None, None, None, None, "2026-10-10T00:00:00Z"),
+            )
+    finally:
+        conn.close()
