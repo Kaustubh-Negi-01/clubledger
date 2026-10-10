@@ -89,10 +89,10 @@ def test_active_membership_resolution(db_conn: sqlite3.Connection):
         """
         INSERT INTO memberships (
             id, user_id, plan_id, membership_year, status,
-            starts_at, expires_at, created_at
+            starts_at, expires_at, member_code, qr_token, created_at
         ) VALUES (
             1, 1, 1, '2026-27', 'ACTIVE',
-            '2026-08-01T00:00:00Z', '2027-08-01T00:00:00Z', '2026-08-01T00:00:00Z'
+            '2026-08-01T00:00:00Z', '2027-08-01T00:00:00Z', 'MEM-001', 'qr-001', '2026-08-01T00:00:00Z'
         );
         """
     )
@@ -118,10 +118,10 @@ def test_active_membership_resolution(db_conn: sqlite3.Connection):
         """
         INSERT INTO memberships (
             id, user_id, plan_id, membership_year, status,
-            starts_at, expires_at, created_at
+            starts_at, expires_at, member_code, qr_token, created_at
         ) VALUES (
             2, 2, 1, '2026-27', 'ACTIVE',
-            '2026-08-01T00:00:00Z', '2027-08-01T00:00:00Z', '2026-08-01T00:00:00Z'
+            '2026-08-01T00:00:00Z', '2027-08-01T00:00:00Z', 'MEM-002', 'qr-002', '2026-08-01T00:00:00Z'
         );
         """
     )
@@ -155,10 +155,10 @@ def test_ticket_price_member_and_public(db_conn: sqlite3.Connection):
         """
         INSERT INTO memberships (
             id, user_id, plan_id, membership_year, status,
-            starts_at, expires_at, created_at
+            starts_at, expires_at, member_code, qr_token, created_at
         ) VALUES (
             1, 1, 1, '2026-27', 'ACTIVE',
-            '2026-08-01T00:00:00Z', '2027-08-01T00:00:00Z', '2026-08-01T00:00:00Z'
+            '2026-08-01T00:00:00Z', '2027-08-01T00:00:00Z', 'MEM-001', 'qr-001', '2026-08-01T00:00:00Z'
         );
         """
     )
@@ -190,10 +190,10 @@ def test_merch_price_member_and_public(db_conn: sqlite3.Connection):
         """
         INSERT INTO memberships (
             id, user_id, plan_id, membership_year, status,
-            starts_at, expires_at, created_at
+            starts_at, expires_at, member_code, qr_token, created_at
         ) VALUES (
             1, 1, 1, '2026-27', 'ACTIVE',
-            '2026-08-01T00:00:00Z', '2027-08-01T00:00:00Z', '2026-08-01T00:00:00Z'
+            '2026-08-01T00:00:00Z', '2027-08-01T00:00:00Z', 'MEM-001', 'qr-001', '2026-08-01T00:00:00Z'
         );
         """
     )

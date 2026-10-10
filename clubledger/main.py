@@ -42,28 +42,19 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(payments_router)
 
-    # Mount optional routers from B and C if available
-    try:
-        from clubledger.membership.routes import router as membership_router
-        app.include_router(membership_router)
-    except (ImportError, AttributeError):
-        pass
+    # Genuine required domain routers (B and C)
+    from clubledger.membership.routes import router as membership_router
+    from clubledger.events.routes import router as events_router
+    from clubledger.reports.routes import router as reports_router
 
-    try:
-        from clubledger.events.routes import router as events_router
-        app.include_router(events_router)
-    except (ImportError, AttributeError):
-        pass
+    app.include_router(membership_router)
+    app.include_router(events_router)
+    app.include_router(reports_router)
 
+    # Store router (Owner B - unimplemented MERCH remains optional until B lands it)
     try:
         from clubledger.store.routes import router as store_router
         app.include_router(store_router)
-    except (ImportError, AttributeError):
-        pass
-
-    try:
-        from clubledger.reports.routes import router as reports_router
-        app.include_router(reports_router)
     except (ImportError, AttributeError):
         pass
 
