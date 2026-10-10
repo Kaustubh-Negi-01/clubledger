@@ -9,7 +9,12 @@ from typing import Iterator
 
 from clubledger.config import get_db_path
 from clubledger.core import clock
-from clubledger.core.errors import MigrationChecksumError, MigrationError, MigrationGapError
+from clubledger.core.errors import (
+    MigrationChecksumError,
+    MigrationDuplicateError,
+    MigrationError,
+    MigrationGapError,
+)
 
 
 MIGRATION_PATTERN = re.compile(r"^(\d{4})_.*\.sql$")
@@ -98,11 +103,15 @@ def _get_default_migrations_dir() -> Path:
 
 
 def get_available_migrations(migrations_dir: Path | None = None) -> list[tuple[int, str, Path]]:
-    """Return sorted list of (number, filename, path) for valid migrations."""
+    """Return sorted list of (number, filename, path) for valid migrations.
+
+    Raises MigrationDuplicateError if duplicate migration numbers are found.
+    """
     dir_path = migrations_dir or _get_default_migrations_dir()
     if not dir_path.exists():
         return []
 
+    seen_numbers: dict[int, str] = {}
     migrations: list[tuple[int, str, Path]] = []
     for file in dir_path.iterdir():
         if not file.is_file():
@@ -110,6 +119,11 @@ def get_available_migrations(migrations_dir: Path | None = None) -> list[tuple[i
         match = MIGRATION_PATTERN.match(file.name)
         if match:
             num = int(match.group(1))
+            if num in seen_numbers:
+                raise MigrationDuplicateError(
+                    f"Duplicate migration number {num:04d}: found in '{seen_numbers[num]}' and '{file.name}'"
+                )
+            seen_numbers[num] = file.name
             migrations.append((num, file.name, file))
 
     migrations.sort(key=lambda m: m[0])
@@ -125,7 +139,8 @@ def apply_migrations(
     """Apply migrations to database.
 
     - If files is None: applies the contiguous available prefix strictly by number,
-      rejecting internal gaps and changed applied files BEFORE applying anything.
+      rejecting internal gaps, duplicate numbers, and missing/renamed/changed applied files
+      BEFORE applying anything.
     - If files is specified: test-only subset fixture mode applying exactly the named files.
     """
     # 1. Determine migration files to consider
@@ -145,19 +160,8 @@ def apply_migrations(
             migration_items.append((num, path.name, path))
         migration_items.sort(key=lambda m: m[0])
     else:
-        # Standard contiguous prefix mode
+        # Standard contiguous prefix mode (rejects duplicate numbers via get_available_migrations)
         migration_items = get_available_migrations(dir_path)
-        if not migration_items:
-            return []
-
-        # Validate contiguous prefix / internal gaps
-        max_num = max(num for num, _, _ in migration_items)
-        present_nums = {num for num, _, _ in migration_items}
-        for expected in range(1, max_num + 1):
-            if expected not in present_nums:
-                raise MigrationGapError(
-                    f"Internal migration gap detected: missing {expected:04d}"
-                )
 
     # 2. Check schema_migrations table and validate applied migrations
     applied_table_exists = conn.execute(
@@ -172,16 +176,47 @@ def apply_migrations(
         for r in rows:
             applied_map[r["number"]] = (r["filename"], r["checksum"])
 
-    # 3. Check for modified checksums of applied migrations BEFORE applying anything
+    # 3. Check for missing, renamed, or modified applied migrations BEFORE applying anything
     item_map = {num: (name, path) for num, name, path in migration_items}
     for applied_num, (applied_name, stored_checksum) in applied_map.items():
-        if applied_num in item_map:
-            _, file_path = item_map[applied_num]
+        if files is None:
+            # In standard CLI mode, previously applied files must exist and keep their filename
+            if applied_num not in item_map:
+                raise MigrationError(
+                    f"Previously applied migration file missing: {applied_name} (number {applied_num:04d})"
+                )
+            current_name, file_path = item_map[applied_num]
+            if current_name != applied_name:
+                raise MigrationError(
+                    f"Previously applied migration file renamed: expected {applied_name}, found {current_name} (number {applied_num:04d})"
+                )
             current_checksum = calculate_checksum(file_path.read_text(encoding="utf-8"))
             if current_checksum != stored_checksum:
                 raise MigrationChecksumError(
                     f"Checksum mismatch for migration {applied_name}: "
                     f"stored {stored_checksum}, current {current_checksum}"
+                )
+        else:
+            # In test-only subset mode, validate checksum only if the file is in the explicit subset
+            if applied_num in item_map:
+                _, file_path = item_map[applied_num]
+                current_checksum = calculate_checksum(file_path.read_text(encoding="utf-8"))
+                if current_checksum != stored_checksum:
+                    raise MigrationChecksumError(
+                        f"Checksum mismatch for migration {applied_name}: "
+                        f"stored {stored_checksum}, current {current_checksum}"
+                    )
+
+    # 4. In standard CLI mode, validate contiguous prefix / internal gaps across available files
+    if files is None:
+        if not migration_items:
+            return []
+        max_num = max(num for num, _, _ in migration_items)
+        present_nums = {num for num, _, _ in migration_items}
+        for expected in range(1, max_num + 1):
+            if expected not in present_nums:
+                raise MigrationGapError(
+                    f"Internal migration gap detected: missing {expected:04d}"
                 )
 
     # 4. Filter migrations that need to be applied
