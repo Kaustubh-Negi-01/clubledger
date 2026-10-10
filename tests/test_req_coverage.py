@@ -305,7 +305,8 @@ def test_skipped_or_xfail_never_counts_as_passing_evidence(tmp_path: Path):
 def test_planned_id_tests_may_execute_in_progress_mode(tmp_path: Path):
     """Under lead workflow correction, tests for planned IDs may execute without failing progress mode."""
     req_file = Path("docs/REQUIREMENTS.md")
-    status_file = Path("tests/req_status.json")  # All planned
+    status_file = tmp_path / "req_status.json"
+    status_file.write_text(json.dumps({rid: "planned" for rid in parse_requirements(req_file)}), encoding="utf-8")
 
     results_file = tmp_path / "results.json"
     results_file.write_text(
@@ -339,7 +340,7 @@ def test_unjustified_deferral_fails(tmp_path: Path):
     """A deferred status without a reason must fail."""
     req_file = Path("docs/REQUIREMENTS.md")
 
-    base_status = json.loads(Path("tests/req_status.json").read_text(encoding="utf-8"))
+    base_status = {rid: "planned" for rid in parse_requirements(req_file)}
     base_status["AUTH-01"] = "deferred"  # No reason string
     status_file = tmp_path / "req_status.json"
     status_file.write_text(json.dumps(base_status), encoding="utf-8")
@@ -370,7 +371,7 @@ def test_justified_deferral_succeeds(tmp_path: Path):
     """A deferred status with a valid reason succeeds in progress mode."""
     req_file = Path("docs/REQUIREMENTS.md")
 
-    base_status = json.loads(Path("tests/req_status.json").read_text(encoding="utf-8"))
+    base_status = {rid: "planned" for rid in parse_requirements(req_file)}
     base_status["AUTH-01"] = {"status": "deferred", "reason": "Cut line per BUILD_ORDER.md §5"}
     status_file = tmp_path / "req_status.json"
     status_file.write_text(json.dumps(base_status), encoding="utf-8")
@@ -400,7 +401,8 @@ def test_justified_deferral_succeeds(tmp_path: Path):
 def test_final_mode_fails_on_unimplemented(tmp_path: Path):
     """Final release gate mode must fail if planned IDs remain unimplemented."""
     req_file = Path("docs/REQUIREMENTS.md")
-    status_file = Path("tests/req_status.json")  # All planned
+    status_file = tmp_path / "req_status.json"
+    status_file.write_text(json.dumps({rid: "planned" for rid in parse_requirements(req_file)}), encoding="utf-8")
 
     results_file = tmp_path / "results.json"
     results_file.write_text(

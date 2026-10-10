@@ -3,10 +3,10 @@
 Provides:
 - Pytest session hooks to record actual test outcomes, run timestamp, tested git commit,
   and req markers into .pytest_results.json.
-- Temporary database fixture (db) using Owner A's connect/unit_of_work/apply_migrations.
-- Clock fixtures (clock, fixed_clock) using Owner A's core.clock.
+- Temporary database fixture (db) using Owner A's connect and apply_migrations explicitly.
+- Clock fixtures (clock) using Owner A's core.clock.
 - App client fixture using Owner A's create_app against the same temporary migrated database.
-- Lazy fixtures for make_user, make_event, login_as (blocks cleanly if A/B implementations are missing).
+- Shared fixtures: make_user, make_event, login_as.
 """
 
 from __future__ import annotations
@@ -65,17 +65,12 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) ->
     outcome = yield
     report = outcome.get_result()
 
-    # Track outcomes:
-    # report.outcome is "passed", "failed", or "skipped"
-    # xfail / xpass handling in pytest:
-    # If xfail: hasattr(report, "wasxfail") -> outcome could be "skipped" (strict=False) or "failed"
     is_xfail = hasattr(report, "wasxfail")
     is_xpass = False
     if report.when == "call" and hasattr(report, "wasxfail") and report.outcome == "passed":
         is_xpass = True
 
     if report.when == "call" or (report.when in ("setup", "teardown") and report.failed) or (report.when == "setup" and report.skipped):
-        # Extract requirement markers: @pytest.mark.req("ID", "kind")
         req_markers = []
         for mark in item.iter_markers(name="req"):
             if len(mark.args) >= 2:
@@ -91,7 +86,6 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) ->
         elif is_xpass:
             status = "xpass"
 
-        # Check if already recorded to avoid duplicate entry for setup+call
         existing = next((r for r in _TEST_RECORDS if r["nodeid"] == item.nodeid), None)
         if existing:
             if status == "failed":
@@ -147,7 +141,6 @@ def temp_db_path() -> Generator[Path, None, None]:
     try:
         yield path
     finally:
-        # Restore environment
         if old_env is None:
             os.environ.pop("CLUBLEDGER_ENV", None)
         else:
@@ -169,26 +162,33 @@ def temp_db_path() -> Generator[Path, None, None]:
 def db(temp_db_path: Path) -> Generator[sqlite3.Connection, None, None]:
     """Temporary SQLite database connection using Owner A's connect and apply_migrations.
     
-    Ensures CONTRACT §0 pragmas and strictly applied migrations.
+    Fails explicitly if dependencies are missing. Seeds default open term and roles.
     """
+    from clubledger.core.db import connect, apply_migrations
+    from clubledger.core import clock
+    from clubledger.seed import seed_roles_and_permissions
+    from clubledger.membership.service import seed_plans
+
+    conn = connect(str(temp_db_path))
+    apply_migrations(conn)
+
+    # Seed roles, permissions, membership plans, and active term
+    seed_roles_and_permissions(conn)
+    seed_plans(conn)
+
+    has_term = conn.execute("SELECT 1 FROM terms WHERE status = 'OPEN' LIMIT 1;").fetchone()
+    if not has_term:
+        conn.execute(
+            "INSERT INTO terms (id, label, starts_at, status, created_at) "
+            "VALUES (1, '2026-T1', '2026-08-01T00:00:00Z', 'OPEN', ?);",
+            (clock.now(),),
+        )
+        conn.commit()
+
     try:
-        from clubledger.core.db import connect, apply_migrations  # type: ignore
-        conn = connect(str(temp_db_path))
-        apply_migrations(conn)
-        try:
-            yield conn
-        finally:
-            conn.close()
-    except (ImportError, ModuleNotFoundError):
-        # If A's core.db is not yet present, use raw sqlite3 connection with CONTRACT §0 pragmas
-        conn = sqlite3.connect(str(temp_db_path))
-        conn.execute("PRAGMA foreign_keys = ON;")
-        conn.execute("PRAGMA busy_timeout = 5000;")
-        conn.row_factory = sqlite3.Row
-        try:
-            yield conn
-        finally:
-            conn.close()
+        yield conn
+    finally:
+        conn.close()
 
 
 @pytest.fixture
@@ -200,13 +200,11 @@ def clock() -> Generator[Any, None, None]:
     old_env = os.environ.get("CLUBLEDGER_ENV")
     os.environ["CLUBLEDGER_ENV"] = "test"
     try:
-        from clubledger.core.clock import now, set_now, reset  # type: ignore
+        from clubledger.core.clock import now, set_now, reset
         import clubledger.core.clock as clock_mod
         reset()
         yield clock_mod
         reset()
-    except (ImportError, ModuleNotFoundError) as exc:
-        pytest.skip(f"clock blocked: core.clock not yet implemented ({exc})")
     finally:
         if old_env is None:
             os.environ.pop("CLUBLEDGER_ENV", None)
@@ -217,41 +215,29 @@ def clock() -> Generator[Any, None, None]:
 @pytest.fixture
 def app_client(temp_db_path: Path, db: sqlite3.Connection) -> Generator[Any, None, None]:
     """FastAPI TestClient fixture configured against the temporary migrated test database."""
-    try:
-        from clubledger.main import create_app  # type: ignore
-        from starlette.testclient import TestClient
-        app = create_app()
-        with TestClient(app) as client:
-            yield client
-    except (ImportError, ModuleNotFoundError) as exc:
-        pytest.skip(f"app_client blocked: application components not yet implemented ({exc})")
+    from clubledger.main import create_app
+    from starlette.testclient import TestClient
+    app = create_app()
+    with TestClient(app) as client:
+        yield client
 
 
 @pytest.fixture
 def make_user(db: sqlite3.Connection) -> Any:
-    """Lazy factory fixture to create a user."""
-    try:
-        from tests.factories import create_user
-        return lambda **kwargs: create_user(db, **kwargs)
-    except (ImportError, AttributeError) as exc:
-        pytest.skip(f"make_user blocked: user service not yet implemented ({exc})")
+    """Factory fixture to create a user with optional roles."""
+    from tests.factories import create_user
+    return lambda **kwargs: create_user(db, **kwargs)
 
 
 @pytest.fixture
 def make_event(db: sqlite3.Connection) -> Any:
-    """Lazy factory fixture to create an event."""
-    try:
-        from tests.factories import create_event
-        return lambda **kwargs: create_event(db, **kwargs)
-    except (ImportError, AttributeError) as exc:
-        pytest.skip(f"make_event blocked: event service not yet implemented ({exc})")
+    """Factory fixture to create an event."""
+    from tests.factories import create_event
+    return lambda **kwargs: create_event(db, **kwargs)
 
 
 @pytest.fixture
-def login_as(app_client: Any) -> Any:
-    """Lazy fixture to authenticate app_client as a given user."""
-    try:
-        from tests.factories import login_user
-        return lambda user: login_user(app_client, user)
-    except (ImportError, AttributeError) as exc:
-        pytest.skip(f"login_as blocked: auth components not yet implemented ({exc})")
+def login_as(app_client: Any, db: sqlite3.Connection) -> Any:
+    """Fixture to authenticate app_client as a given user."""
+    from tests.factories import login_user
+    return lambda user: login_user(app_client, user, db)
