@@ -33,6 +33,16 @@ create table public.terms (
 );
 create unique index ux_terms_one_open on public.terms (status) where status = 'OPEN';
 
+-- Deployment settings that only an admin can change (through api_set_config).
+create table public.app_config (
+  key text primary key,
+  value text not null,
+  updated_at timestamptz not null default now()
+);
+insert into public.app_config (key, value) values
+  ('simulated_payments', 'true'),      -- set to 'false' once a real payment gateway is attached
+  ('allowed_email_domains', '');       -- comma separated; empty allows any domain
+
 create table public.audit_log (
   id bigserial primary key,
   actor uuid,
@@ -112,12 +122,18 @@ end $$;
 -- New auth user -> profile. The very first user becomes admin so a fresh deployment has an owner.
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
+declare allowed text := (select value from public.app_config where key = 'allowed_email_domains');
 begin
+  -- The domain allow-list is enforced here, so calling Supabase Auth directly cannot bypass it.
+  if coalesce(allowed, '') <> '' and not (lower(split_part(coalesce(new.email, ''), '@', 2)) = any (string_to_array(lower(replace(allowed, ' ', '')), ','))) then
+    raise exception 'FORBIDDEN|That email domain is not allowed to join this club';
+  end if;
   insert into public.profiles (id, email, full_name, avatar_url)
   values (new.id, coalesce(new.email, new.id::text || '@unknown.local'),
           coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name', split_part(coalesce(new.email, ''), '@', 1)),
           new.raw_user_meta_data ->> 'avatar_url')
   on conflict (id) do nothing;
+  lock table public.user_roles in share row exclusive mode;   -- two simultaneous first sign-ups cannot both become admin
   if not exists (select 1 from public.user_roles where role = 'admin' and revoked_at is null) then
     insert into public.user_roles (user_id, role) values (new.id, 'admin');
   end if;

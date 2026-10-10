@@ -14,13 +14,19 @@ function serviceClient() {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
+function assertSafePath(path: string) {
+  if (path.startsWith("/") || path.split("/").some((seg) => seg === ".." || seg === "." || seg === "")) throw new Error("Invalid path");
+}
+
 function safeLocal(path: string) {
+  assertSafePath(path);
   const full = normalize(join(LOCAL_ROOT, path));
   if (!full.startsWith(LOCAL_ROOT)) throw new Error("Invalid path");
   return full;
 }
 
 export async function putReceipt(path: string, bytes: Uint8Array, mime: string): Promise<void> {
+  assertSafePath(path);
   if (isDemo) {
     const full = safeLocal(path);
     await mkdir(dirname(full), { recursive: true });
@@ -34,6 +40,7 @@ export async function putReceipt(path: string, bytes: Uint8Array, mime: string):
 }
 
 export async function getReceipt(path: string): Promise<Uint8Array> {
+  assertSafePath(path);
   if (isDemo) return new Uint8Array(await readFile(safeLocal(path)));
   const { data, error } = await serviceClient().storage.from(BUCKET).download(path);
   if (error || !data) throw new Error(error?.message ?? "Missing file");

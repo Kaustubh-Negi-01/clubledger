@@ -82,6 +82,9 @@ export async function submitExpenseAction(_: ActionState, fd: FormData): Promise
     if (amount === null || amount <= 0) throw new AppError("VALIDATION", "Enter the amount in rupees, for example 450 or 450.50");
     const fundraiser = fd.get("fundraiser") ? Number(fd.get("fundraiser")) : null;
     const event = fd.get("event") ? Number(fd.get("event")) : null;
+    const file = fd.get("receipt");
+    const hasFile = file instanceof File && file.size > 0;
+    if (hasFile) await checkReceiptFile(file);
     const created = await rpc<{ id: number }>("api_expense_submit", {
       p_category: String(fd.get("category") ?? ""),
       p_amount: amount,
@@ -90,10 +93,9 @@ export async function submitExpenseAction(_: ActionState, fd: FormData): Promise
       p_fundraiser: fundraiser,
       p_task: null,
     });
-    const file = fd.get("receipt");
-    if (file instanceof File && file.size > 0) await attachReceipt(me.id, created.id, file);
+    if (hasFile) await attachReceipt(me.id, created.id, file);
     revalidatePath("/me/expenses");
-    return file instanceof File && file.size > 0 ? "Expense submitted with receipt" : "Expense submitted. Add a receipt so it can be paid.";
+    return hasFile ? "Expense submitted with receipt" : "Expense submitted. Add a receipt so it can be paid.";
   });
 }
 
@@ -108,11 +110,16 @@ export async function addReceiptAction(expenseId: number, _: ActionState, fd: Fo
   });
 }
 
-async function attachReceipt(userId: string, expenseId: number, file: File) {
+async function checkReceiptFile(file: File) {
   if (file.size > 5 * 1024 * 1024) throw new AppError("UPLOAD_REJECTED", "That file is larger than 5 MB");
   const bytes = new Uint8Array(await file.arrayBuffer());
   const mime = sniffMime(bytes);
   if (!mime) throw new AppError("UPLOAD_REJECTED", "Upload a PNG, JPG or PDF. The file contents do not match.");
+  return { bytes, mime };
+}
+
+async function attachReceipt(userId: string, expenseId: number, file: File) {
+  const { bytes, mime } = await checkReceiptFile(file);
   const ext = mime === "application/pdf" ? "pdf" : mime === "image/png" ? "png" : "jpg";
   const path = `${userId}/${expenseId}/${randomUUID()}.${ext}`;
   const name = file.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120) || `receipt.${ext}`;

@@ -212,9 +212,12 @@ ok((await err(MEMBER, "api_expense_decide", ex.id, true, "")).startsWith("SELF_A
 await api(ADMIN, "api_set_role", MEMBER, "treasurer", false);
 await api(TREAS, "api_expense_decide", ex.id, true, "ok");
 ok((await err(TREAS, "api_expense_pay", ex.id)).startsWith("VALIDATION"), "paying needs a receipt");
-await api(MEMBER, "api_expense_add_receipt", ex.id, "u/1/r.png", "r.png", "image/png", 1234);
-ok((await err(MEMBER, "api_expense_add_receipt", ex.id, "u/1/r.exe", "r.exe", "application/x-msdownload", 10)).startsWith("UPLOAD_REJECTED"), "bad file type rejected");
-eq((await api(MEMBER, "api_receipt_path", 1)).path, "u/1/r.png", "owner can fetch own receipt path");
+const goodPath = `${MEMBER}/${ex.id}/123e4567-e89b-12d3-a456-426614174000.png`;
+ok((await err(MEMBER, "api_expense_add_receipt", ex.id, "../other-bucket/x.pdf", "x.pdf", "application/pdf", 10)).startsWith("UPLOAD_REJECTED"), "receipt path traversal rejected");
+ok((await err(MEMBER, "api_expense_add_receipt", ex.id, `${OUTSIDER}/${ex.id}/123e4567-e89b-12d3-a456-426614174000.png`, "x.png", "image/png", 10)).startsWith("UPLOAD_REJECTED"), "receipt path for another user rejected");
+await api(MEMBER, "api_expense_add_receipt", ex.id, goodPath, "r.png", "image/png", 1234);
+ok((await err(MEMBER, "api_expense_add_receipt", ex.id, goodPath.replace("png", "exe"), "r.exe", "application/x-msdownload", 10)).startsWith("UPLOAD_REJECTED"), "bad file type rejected");
+eq((await api(MEMBER, "api_receipt_path", 1)).path, goodPath, "owner can fetch own receipt path");
 ok((await err(OUTSIDER, "api_receipt_path", 1)).startsWith("NOT_FOUND"), "others cannot");
 eq(await bal("2100"), 25000, "approved expense is a payable");
 await api(TREAS, "api_expense_pay", ex.id);
@@ -251,6 +254,29 @@ const m3 = await api(null, "api_maintenance");
 eq(m3.memberships_expired, 1, "membership expires at the academic-year boundary");
 eq((await api(MEMBER, "api_event_get", ev.id)).my_tier, "PUBLIC", "expired member pays public price");
 await clock("2026-09-10T11:00:00Z");
+
+// ---------------- hardening ----------------
+console.log("hardening");
+await api(null, "api_subscribe", "stranger@club.test");
+const strangerTok = (await one(`select unsub_token from subscribers where email='stranger@club.test'`)).unsub_token;
+await api(null, "api_unsubscribe", strangerTok);
+await api(null, "api_subscribe", "stranger@club.test");
+eq((await one(`select status from subscribers where email='stranger@club.test'`)).status, "UNSUBSCRIBED", "a stranger cannot re-subscribe an unsubscribed address");
+await db.exec(`update app_config set value='false' where key='simulated_payments'`);
+const jn3 = await api(OUTSIDER, "api_join", 1);
+ok((await err(OUTSIDER, "api_pay_simulate", jn3.payment_id, "success")).startsWith("FORBIDDEN"), "simulator can be switched off");
+await db.exec(`update app_config set value='true' where key='simulated_payments'`);
+await api(OUTSIDER, "api_pay_simulate", jn3.payment_id, "fail");
+ok((await err(MEMBER, "api_set_config", "simulated_payments", "false")).startsWith("FORBIDDEN"), "members cannot change settings");
+await db.exec(`update app_config set value='college.edu' where key='allowed_email_domains'`);
+ok((await sqlErr2(`insert into auth.users (id, email) values ('00000000-0000-4000-8000-0000000000aa', 'x@evil.test')`)).includes("not allowed"), "email domain allow-list is enforced by the database");
+await db.exec(`insert into auth.users (id, email) values ('00000000-0000-4000-8000-0000000000ab', 'ok@college.edu')`);
+await db.exec(`update app_config set value='' where key='allowed_email_domains'`);
+async function sqlErr2(sql: string) { try { await db.exec(sql); return "NO_ERROR"; } catch (e: any) { return e.message; } }
+const FREE = await api(ORG, "api_event_save", null, "Free Fest", "", "Lawn", "2026-10-25T13:00:00Z", "2026-10-25T15:00:00Z", 100, 0, 0, 10, "");
+await api(ORG, "api_event_set_status", FREE.id, "ON_SALE");
+await api(OUTSIDER, "api_hold_tickets", FREE.id, 10);
+ok((await err(OUTSIDER, "api_hold_tickets", FREE.id, 1)).startsWith("VALIDATION"), "free tickets are capped per person");
 
 // ---------------- close ----------------
 console.log("term close");

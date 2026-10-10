@@ -2,6 +2,9 @@
 -- database only through api_* functions, which authorize every call themselves.
 -- Convention for future migrations: public functions must be named api_*; everything else is internal.
 
+-- Anything created by a later migration is private until it is deliberately granted.
+alter default privileges in schema public revoke execute on functions from public, anon, authenticated;
+
 do $$
 declare t record; f record;
 begin

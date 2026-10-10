@@ -7,6 +7,7 @@ import { ActionButton } from "@/components/ui/action-form";
 import { setRoleAction } from "@/app/actions/staff";
 import { cn } from "@/lib/cn";
 import { HandoverForm } from "./handover";
+import { SettingsForm } from "./settings";
 
 export const metadata: Metadata = { title: "Team" };
 
@@ -22,7 +23,7 @@ const roles = [
 
 export default async function TeamPage() {
   const me = await requireRole("/admin/team", "admin");
-  const people = await rpc<Row[]>("api_members_admin");
+  const [people, config] = await Promise.all([rpc<Row[]>("api_members_admin"), rpc<Record<string, string>>("api_config")]);
   return (
     <>
       <PageHeader title="Team and handover" description="Roles take effect on the very next click. Nothing is cached, so removing a role removes access immediately." />
@@ -47,6 +48,11 @@ export default async function TeamPage() {
       </div>
 
       <Card className="mt-10">
+        <CardHeader title="Deployment settings" />
+        <div className="p-5"><SettingsForm simulated={config.simulated_payments === "true"} domains={config.allowed_email_domains ?? ""} /></div>
+      </Card>
+
+      <Card className="mt-6">
         <CardHeader title="Officer handover" />
         <div className="p-5">
           <p className="mb-5 max-w-2xl text-sm leading-relaxed text-muted">After a term is closed, hand your roles to the incoming officer. The move is recorded with who, what and when, and is available once per closed term.</p>

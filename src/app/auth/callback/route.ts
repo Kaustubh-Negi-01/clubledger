@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseServer, isDemo } from "@/lib/db";
+import { safeNext } from "@/lib/safe-next";
 
 function allowed(email: string | undefined) {
   const list = (process.env.ALLOWED_EMAIL_DOMAINS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
@@ -10,8 +11,7 @@ function allowed(email: string | undefined) {
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const nextParam = searchParams.get("next") ?? "/me";
-  const next = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/me";
+  const next = safeNext(searchParams.get("next"));
   if (isDemo || !code) return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent("Sign-in link was invalid or expired")}`);
 
   const sb = await supabaseServer();

@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:db": "tsx scripts/test-db.ts"
+    "test:db": "tsx scripts/test-db.ts",
+    "test:e2e": "tsx scripts/e2e.ts",
+    "test": "npm run test:db"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

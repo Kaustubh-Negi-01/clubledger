@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ArrowRight, Info } from "@phosphor-icons/react/dist/ssr";
-import { isDemo } from "@/lib/db";
+import { demoAllowed, isDemo } from "@/lib/db";
 import { DEMO_PERSONAS } from "@/lib/db/demo";
 import { getMe } from "@/lib/session";
 import { demoSignIn } from "@/app/actions/auth";
 import { AuthForms } from "./auth-forms";
+import { safeNext as cleanNext } from "@/lib/safe-next";
 
 export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
   const { next = "/me", error } = await searchParams;
-  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/me";
+  const safeNext = cleanNext(next);
   if (await getMe()) redirect(safeNext);
 
   return (
@@ -28,7 +29,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <h2 className="hidden text-xl font-semibold tracking-tight lg:block">Sign in or create an account</h2>
         {error ? <p role="alert" className="mt-4 rounded-ctl bg-bad-soft px-3.5 py-2.5 text-sm text-bad">{decodeURIComponent(error)}</p> : null}
 
-        {isDemo ? (
+        {isDemo && !demoAllowed ? (
+          <p className="mt-6 rounded-ctl bg-warn-soft p-4 text-sm leading-relaxed text-warn">This site is not connected to its database yet. The owner needs to add the Supabase environment variables.</p>
+        ) : isDemo ? (
           <div className="mt-6">
             <div className="mb-5 flex gap-3 rounded-ctl bg-info-soft p-3.5 text-sm leading-relaxed text-info">
               <Info size={20} className="mt-0.5 shrink-0" weight="fill" />

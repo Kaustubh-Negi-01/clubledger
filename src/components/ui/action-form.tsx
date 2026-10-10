@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useRef, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
 import { CircleNotch } from "@phosphor-icons/react";
@@ -9,6 +9,14 @@ import { cn } from "@/lib/cn";
 import type { ActionState } from "@/lib/action";
 
 type FormAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
+
+function announce(r: ActionState) {
+  if (r.ok) {
+    if (r.message) toast.success(r.message);
+  } else if (r.error) {
+    toast.error(r.error);
+  }
+}
 
 export function SubmitButton({
   children,
@@ -32,7 +40,10 @@ export function SubmitButton({
   );
 }
 
-/** A form wired to a server action: inline error, success toast, optional reset. */
+/**
+ * A form wired to a server action: inline error, success toast, optional reset.
+ * Toasts fire inside the action promise, so they still appear when the revalidated page removes this form.
+ */
 export function ActionForm({
   action,
   children,
@@ -44,17 +55,13 @@ export function ActionForm({
   className?: string;
   reset?: boolean;
 }) {
-  const [state, formAction] = useActionState(action, {} as ActionState);
   const ref = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    if (!state.nonce) return;
-    if (state.ok) {
-      if (state.message) toast.success(state.message);
-      if (reset) ref.current?.reset();
-    } else if (state.error) {
-      toast.error(state.error);
-    }
-  }, [state, reset]);
+  const [state, formAction] = useActionState(async (prev: ActionState, fd: FormData) => {
+    const r = await action(prev, fd);
+    announce(r);
+    if (r.ok && reset) ref.current?.reset();
+    return r;
+  }, {} as ActionState);
   return (
     <form ref={ref} action={formAction} className={className}>
       {children}
@@ -83,23 +90,25 @@ export function ActionButton({
   size?: "sm" | "md";
   className?: string;
 }) {
-  const [state, formAction] = useActionState(async () => action(), {} as ActionState);
-  useEffect(() => {
-    if (!state.nonce) return;
-    if (state.ok) toast.success(state.message ?? "Done");
-    else if (state.error) toast.error(state.error);
-  }, [state]);
+  const [pending, start] = useTransition();
   return (
-    <form
-      action={formAction}
-      className={cn("inline-block", className)}
-      onSubmit={(e) => {
-        if (confirm && !window.confirm(confirm)) e.preventDefault();
-      }}
-    >
-      <SubmitButton variant={variant} size={size}>
+    <span className={cn("inline-block", className)}>
+      <Button
+        type="button"
+        variant={variant}
+        size={size}
+        disabled={pending}
+        aria-busy={pending}
+        onClick={() => {
+          if (confirm && !window.confirm(confirm)) return;
+          start(async () => {
+            announce(await action());
+          });
+        }}
+      >
+        {pending ? <CircleNotch size={18} className="animate-spin" aria-hidden /> : null}
         {children}
-      </SubmitButton>
-    </form>
+      </Button>
+    </span>
   );
 }

@@ -263,6 +263,7 @@ begin
   if p_on then
     insert into public.user_roles (user_id, role) values (p_user, p_role) on conflict do nothing;
   else
+    lock table public.user_roles in share row exclusive mode;   -- two admins cannot remove each other at the same instant
     if p_role = 'admin' and (select count(*) from public.user_roles where role = 'admin' and revoked_at is null and user_id <> p_user) = 0 then
       perform public.fail('VALIDATION', 'At least one admin must remain');
     end if;
@@ -443,4 +444,23 @@ begin
   perform public.post_entry('expense', x.id::text, 'paid', 'Reimbursement paid',
     jsonb_build_array(jsonb_build_object('account', '2100', 'debit', x.amount_paise),
                       jsonb_build_object('account', '1000', 'credit', x.amount_paise)));
+end $$;
+
+-- ---- deployment settings (admin only) ---------------------------------------------------------------
+create or replace function public.api_config() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  perform public.require_role('admin');
+  return (select coalesce(jsonb_object_agg(key, value), '{}'::jsonb) from public.app_config);
+end $$;
+
+create or replace function public.api_set_config(p_key text, p_value text) returns void
+language plpgsql security definer set search_path = public as $$
+declare uid uuid := public.require_role('admin');
+begin
+  if p_key not in ('simulated_payments', 'allowed_email_domains') then perform public.fail('VALIDATION', 'Unknown setting'); end if;
+  if p_key = 'simulated_payments' and p_value not in ('true', 'false') then perform public.fail('VALIDATION', 'Use true or false'); end if;
+  if p_key = 'allowed_email_domains' and p_value !~ '^[a-z0-9.,\- ]*$' then perform public.fail('VALIDATION', 'Use domains separated by commas'); end if;
+  update public.app_config set value = lower(trim(p_value)), updated_at = public.app_now() where key = p_key;
+  insert into public.audit_log (actor, action, entity, entity_id, detail) values (uid, 'config.set', 'app_config', p_key, jsonb_build_object('value', p_value));
 end $$;

@@ -236,3 +236,13 @@ export async function processMaintenanceAction(): Promise<ActionState> {
     return `Expired ${r.holds_expired} holds, ${r.orders_expired} orders; queued ${r.reminders_queued} reminders.`;
   });
 }
+
+export async function setConfigAction(key: string, valueOrPrev: string | ActionState, fd?: FormData): Promise<ActionState> {
+  return run(async () => {
+    // Called as (key, value) from a button, or (key, prevState, formData) from a form.
+    const value = typeof valueOrPrev === "string" ? valueOrPrev : String(fd?.get("value") ?? "");
+    await rpc("api_set_config", { p_key: key, p_value: value });
+    revalidatePath("/admin/team");
+    return "Setting saved";
+  });
+}

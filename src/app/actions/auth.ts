@@ -2,10 +2,11 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { DEMO_COOKIE, isDemo, supabaseServer } from "@/lib/db";
+import { DEMO_COOKIE, demoAllowed, isDemo, supabaseServer } from "@/lib/db";
 import { run, type ActionState } from "@/lib/action";
 import { AppError } from "@/lib/db/errors";
 import { DEMO_PERSONAS } from "@/lib/db/demo";
+import { safeNext } from "@/lib/safe-next";
 
 function allowedDomain(email: string) {
   const list = (process.env.ALLOWED_EMAIL_DOMAINS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
@@ -13,17 +14,12 @@ function allowedDomain(email: string) {
   return list.includes(email.split("@")[1]?.toLowerCase() ?? "");
 }
 
-function safeNext(v: FormDataEntryValue | null) {
-  const s = typeof v === "string" ? v : "/me";
-  return s.startsWith("/") && !s.startsWith("//") ? s : "/me";
-}
-
 /** Demo only: sign in as one of the seeded people. */
 export async function demoSignIn(userId: string, next: string) {
-  if (!isDemo) throw new Error("Demo sign-in is disabled when Supabase is configured.");
+  if (!isDemo || !demoAllowed) throw new Error("Demo sign-in is disabled.");
   if (!DEMO_PERSONAS.some((p) => p.id === userId)) throw new Error("Unknown demo user");
   (await cookies()).set(DEMO_COOKIE, userId, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 8 });
-  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/me");
+  redirect(safeNext(next));
 }
 
 export async function passwordAuth(_: ActionState, fd: FormData): Promise<ActionState> {

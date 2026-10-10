@@ -1,4 +1,6 @@
 import Image from "next/image";
+import { BaseballCap, Broom, Code, Confetti, Hoodie, Microphone, Ticket, Tote, Trophy, TShirt } from "@phosphor-icons/react/dist/ssr";
+import type { Icon } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
 
 function hash(s: string) {
@@ -10,21 +12,32 @@ function hash(s: string) {
   return h >>> 0;
 }
 
+const glyphs: [RegExp, Icon][] = [
+  [/hoodie|sweat/i, Hoodie],
+  [/shirt|tee/i, TShirt],
+  [/tote|bag/i, Tote],
+  [/cap|hat/i, BaseballCap],
+  [/mic|music|band|concert/i, Microphone],
+  [/gala|party|night out|celebrat/i, Confetti],
+  [/clean|green|lake/i, Broom],
+  [/hack|code|tech/i, Code],
+  [/quiz|trophy|award|contest/i, Trophy],
+];
+
 /**
  * Generated poster art for items without a photo: layered gradients in the single accent colour,
- * positioned from a hash of the title so every item looks distinct but stable. Offline and instant.
+ * positioned from a hash of the title so every item looks distinct but stable, with a large glyph that
+ * hints at what it is. Offline and instant. Officers can add a real photo URL at any time.
  */
-export function Poster({ title, className, quiet }: { title: string; className?: string; quiet?: boolean }) {
+export function Poster({ title, className }: { title: string; className?: string; quiet?: boolean }) {
   const h = hash(title);
   const p = (n: number, lo: number, hi: number) => lo + (((h >>> n) & 0xffff) % (hi - lo));
-  const words = title.split(/\s+/).filter(Boolean);
-  const big = words.length > 1 ? words.slice(0, 2).join(" ") : title;
+  const Glyph = glyphs.find(([re]) => re.test(title))?.[1] ?? Ticket;
   return (
     <div
       aria-hidden
       className={cn("absolute inset-0 overflow-hidden", className)}
       style={{
-        containerType: "inline-size",
         background: [
           `radial-gradient(${p(2, 55, 85)}% ${p(5, 60, 90)}% at ${p(8, 10, 90)}% ${p(11, 0, 60)}%, color-mix(in oklab, var(--accent) 78%, transparent), transparent 62%)`,
           `radial-gradient(${p(14, 40, 70)}% ${p(17, 50, 80)}% at ${p(20, 20, 100)}% ${p(23, 50, 110)}%, color-mix(in oklab, var(--ink) 22%, transparent), transparent 68%)`,
@@ -32,7 +45,7 @@ export function Poster({ title, className, quiet }: { title: string; className?:
         ].join(","),
       }}
     >
-      {quiet ? null : <p className="display absolute inset-x-5 bottom-4 text-[clamp(2rem,9cqw,4.2rem)] leading-[0.95] tracking-tighter text-ink/90 [text-wrap:balance]">{big}</p>}
+      <Glyph weight="duotone" className="absolute right-[8%] top-1/2 h-[46%] w-auto -translate-y-1/2 text-ink/80 drop-shadow-sm" />
     </div>
   );
 }

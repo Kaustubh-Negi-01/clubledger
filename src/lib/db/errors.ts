@@ -7,6 +7,7 @@ export class AppError extends Error {
 
 /** Database errors are raised as "CODE|human message". Anything else is an unexpected failure. */
 export function toAppError(e: unknown): AppError {
+  if (e instanceof AppError) return e;
   const raw = e instanceof Error ? e.message : typeof e === "string" ? e : (e as { message?: string })?.message ?? "Unknown error";
   const m = /^([A-Z_]+)\|(.*)$/s.exec(raw.replace(/^error:\s*/i, ""));
   if (m) return new AppError(m[1], m[2].trim());

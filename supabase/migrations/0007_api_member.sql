@@ -88,6 +88,9 @@ create or replace function public.api_pay_simulate(p_id uuid, p_outcome text) re
 language plpgsql security definer set search_path = public as $$
 declare uid uuid := public.require_auth(); p public.payments;
 begin
+  if coalesce((select value from public.app_config where key = 'simulated_payments'), 'false') <> 'true' then
+    perform public.fail('FORBIDDEN', 'Simulated payments are switched off. Payments are confirmed by the payment gateway.');
+  end if;
   select * into p from public.payments where id = p_id and user_id = uid for update;
   if p.id is null then perform public.fail('NOT_FOUND', 'Payment not found'); end if;
   if p_outcome = 'fail' then
@@ -165,6 +168,9 @@ begin
   select price, t.tier into unit, tier from public.ticket_price_for(e.id, uid, public.app_now()) t;
 
   if unit = 0 then
+    if (select coalesce(sum(qty), 0) from public.ticket_holds where event_id = e.id and user_id = uid and status = 'CONSUMED' and unit_price_paise = 0) + p_qty > 10 then
+      perform public.fail('VALIDATION', 'You already hold the maximum of 10 free tickets for this event');
+    end if;
     insert into public.ticket_holds (event_id, user_id, qty, unit_price_paise, price_tier, status, expires_at)
     values (e.id, uid, p_qty, 0, tier, 'CONSUMED', public.app_now()) returning * into h;
     for i in 1 .. p_qty loop
@@ -309,8 +315,11 @@ declare em text := lower(trim(p_email)); s public.subscribers;
 begin
   if em !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(em) > 200 then perform public.fail('VALIDATION', 'Enter a valid email address'); end if;
   insert into public.subscribers (email, user_id) values (em, auth.uid())
-  on conflict (lower(email)) do update set status = 'SUBSCRIBED', unsubscribed_at = null
-  returning * into s;
+  on conflict (lower(email)) do nothing;
+  -- An unsubscribed address only comes back when the signed-in owner of that address asks; a stranger cannot re-subscribe it.
+  update public.subscribers set status = 'SUBSCRIBED', unsubscribed_at = null
+   where lower(email) = em and status = 'UNSUBSCRIBED'
+     and exists (select 1 from public.profiles p where p.id = auth.uid() and lower(p.email) = em);
   return jsonb_build_object('ok', true);
 end $$;
 
@@ -352,6 +361,10 @@ begin
   if x.status not in ('SUBMITTED','APPROVED') then perform public.fail('VALIDATION', 'This expense can no longer take receipts'); end if;
   if p_mime not in ('image/png','image/jpeg','application/pdf') or p_size < 1 or p_size > 5242880 then
     perform public.fail('UPLOAD_REJECTED', 'Upload a PNG, JPG or PDF under 5 MB');
+  end if;
+  -- The path must be exactly what the server generates for this user and expense: no traversal into other objects.
+  if p_path !~ ('^' || uid::text || '/' || p_expense::text || '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(pdf|png|jpg)$') then
+    perform public.fail('UPLOAD_REJECTED', 'Invalid receipt location');
   end if;
   insert into public.receipts (uploader_id, expense_id, storage_path, original_name, mime, size_bytes)
   values (uid, x.id, p_path, left(p_name, 200), p_mime, p_size) returning * into r;

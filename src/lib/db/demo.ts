@@ -8,9 +8,9 @@ import { Json } from "./json";
  * No-credentials preview database: the real migrations and the demo seed running in an in-process Postgres.
  * Identical SQL to production, so behaviour matches. State lives in memory and resets when the server restarts.
  */
-type Holder = { db?: Promise<PGlite>; queue: Promise<unknown> };
+type Holder = { db?: Promise<PGlite>; queue: Promise<unknown>; offsetMs: number };
 const g = globalThis as unknown as { __clubledgerDemo?: Holder };
-const holder: Holder = (g.__clubledgerDemo ??= { queue: Promise.resolve() });
+const holder: Holder = (g.__clubledgerDemo ??= { queue: Promise.resolve(), offsetMs: 0 });
 
 async function boot(): Promise<PGlite> {
   const root = join(process.cwd(), "supabase");
@@ -49,6 +49,7 @@ export function demoRpc<T>(userId: string | null, fn: string, args: Record<strin
   const run = async () => {
     const db = await demoDb();
     await db.query("select set_config('request.jwt.claim.sub', $1, false)", [userId ?? ""]);
+    await db.query("select set_config('app.now_override', $1, false)", [holder.offsetMs ? new Date(Date.now() + holder.offsetMs).toISOString() : ""]);
     const keys = Object.keys(args);
     const named = keys.map((k, i) => `${k} => $${i + 1}`).join(", ");
     const vals = keys.map((k) => {
@@ -61,4 +62,13 @@ export function demoRpc<T>(userId: string | null, fn: string, args: Record<strin
   const next = holder.queue.then(run, run);
   holder.queue = next.catch(() => undefined);
   return next;
+}
+
+/** Demo-only time travel so expiry, late payments and term close can be shown without waiting. */
+export function demoAdvanceClock(ms: number | null) {
+  holder.offsetMs = ms === null ? 0 : holder.offsetMs + ms;
+  return holder.offsetMs;
+}
+export function demoClockOffset() {
+  return holder.offsetMs;
 }

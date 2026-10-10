@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireMe, hasRole } from "@/lib/session";
+import { redirect } from "next/navigation";
+import { requireMe, hasRole, isStaff } from "@/lib/session";
 import { rpc } from "@/lib/db";
 import { dateTime, inr } from "@/lib/format";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -9,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { ActionButton } from "@/components/ui/action-form";
 import { processMaintenanceAction } from "@/app/actions/staff";
 import { cn } from "@/lib/cn";
+import { isDemo } from "@/lib/db";
+import { advanceClockAction } from "@/app/actions/demo";
 
 export const metadata: Metadata = { title: "Officer console" };
 
@@ -30,6 +33,7 @@ function Stat({ label, value, href, tone }: { label: string; value: React.ReactN
 
 export default async function AdminHome() {
   const me = await requireMe("/admin");
+  if (!isStaff(me)) redirect("/me?denied=1");
   const o = await rpc<Overview>("api_admin_overview");
   const fin = hasRole(me, "treasurer");
   return (
@@ -63,6 +67,23 @@ export default async function AdminHome() {
           </>
         )}
       </div>
+
+      {isDemo ? (
+        <Card className="mb-8 border-info/30 bg-info-soft/40">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-5">
+            <div className="max-w-xl">
+              <p className="font-semibold">Demo controls</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted">This preview runs on a demo database. Skip time forward to watch holds expire, late payments land as obligations, and a term become ready to close.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <ActionButton action={advanceClockAction.bind(null, 15)} variant="secondary">+15 minutes</ActionButton>
+              <ActionButton action={advanceClockAction.bind(null, 120)} variant="secondary">+2 hours</ActionButton>
+              <ActionButton action={advanceClockAction.bind(null, 60 * 24 * 40)} variant="secondary">+40 days</ActionButton>
+              <ActionButton action={advanceClockAction.bind(null, null)} variant="ghost">Reset clock</ActionButton>
+            </div>
+          </div>
+        </Card>
+      ) : null}
 
       <Card className="mt-8">
         <CardHeader title="Next events" action={<Link href="/admin/events" className="text-sm font-medium text-accent">Manage events</Link>} />
