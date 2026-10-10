@@ -22,7 +22,9 @@ Single club (Skyline Student Association). Python 3.12, FastAPI, Jinja2 + HTMX, 
 
 ## 1. Schema
 
-Migration files are applied **strictly by number, contiguously**. File order of *writing* does not imply order of *applying*: `0006_journal.sql` may be written first by Owner C, but it is applied after `0001`–`0005`, and the migrator refuses to run if a number in `0001..0010` is missing. Owner A commits no-op placeholders (`-- reserved for <owner>`) for `0003`–`0010` at H0 so numbering is contiguous and the owners replace them. Every migration may reference only tables from lower-numbered migrations. Before the first merge to `master`, migrations may be edited and local DBs rebuilt with `reset-db` (dev only); the migrator stores a checksum per applied file and fails on mismatch with a message pointing to `reset-db`. After the first merge to `master`, applied migrations are frozen and changes require a new file.
+**Migration lifecycle.** Migrations are genuine SQL only; there are no executable no-op placeholder files. The migrator (`migrate`) applies migrations **strictly by number** and works on the *contiguous available prefix*: it applies `0001`, `0002`, … up to the first missing number and stops. It does not require all ten files to exist during early development. It **rejects an internal gap** (e.g. `0001`, `0002`, `0004` present with `0003` missing: error naming the missing number, nothing applied) and **rejects a changed applied migration** (the stored checksum differs: error naming the file; the database is left untouched). It never deletes or recreates a database on its own.
+
+Writing order is not applying order. Owner C authors `0006_journal.sql` early on `codex/treasury-comms`, but integration (`master`) applies it only after genuine `0003`–`0005` exist, because a `0006` file with those missing is an internal gap. Until then C tests the journal with a test-only fixture that applies an explicitly named subset (`0001_core.sql` + `0006_journal.sql`, which depends only on `terms` and `users`) through `apply_migrations(files=[...])`. That subset fixture is a unit-test convenience, not the production migration sequence, and is never used by the CLI. Every migration may reference only tables from lower-numbered migrations. Once a migration has reached `master` it is frozen; later changes need a new numbered file. Before that, its owner may edit it on their branch and rebuild a local database by hand. `reset-db` is an explicit, manual developer command that deletes a database file only when invoked with `--confirm <exact path>` and `CLUBLEDGER_ENV` in `dev`/`test`; no other command and no checksum failure deletes a non-test database. Test databases are fresh temp files created by fixtures.
 
 ### 1.1 Core / auth (Owner A, `0001_core.sql`)
 
@@ -141,7 +143,7 @@ CREATE TABLE payment_events (                       -- ONLY events that passed s
   claimed_user_id INTEGER, claimed_public_id TEXT NOT NULL,
   amount_paise INTEGER NOT NULL, currency TEXT NOT NULL,
   outcome TEXT NOT NULL CHECK (outcome IN ('APPLIED','APPLIED_UNFULFILLED','UNAPPLIED_RECEIPT','NO_EFFECT')),
-  reason TEXT,                                       -- e.g. 'AMOUNT_MISMATCH','UNKNOWN_PAYMENT','DUPLICATE_RECEIPT','LATE_AFTER_EXPIRED'
+  reason TEXT,                                       -- e.g. 'AMOUNT_MISMATCH','UNKNOWN_PAYMENT','REPEATED_NOTIFICATION','LATE_AFTER_EXPIRED'
   settled_at TEXT,                                   -- for UNAPPLIED_RECEIPT booked to cash like a payment
   resolution TEXT CHECK (resolution IN ('REFUNDED','DISMISSED')),
   resolved_by INTEGER REFERENCES users(id), resolved_at TEXT, resolution_note TEXT,
@@ -303,7 +305,7 @@ CREATE TABLE accounts (
 CREATE TABLE journal_entries (
   id INTEGER PRIMARY KEY,
   term_id INTEGER NOT NULL REFERENCES terms(id),    -- must be the OPEN term (trigger)
-  entry_date TEXT NOT NULL,                         -- UTC instant the effect is recognized; used for as-of balances
+  entry_date TEXT NOT NULL,                         -- UTC instant (second precision) = clock.now() at posting; informational/historical filter only
   source_type TEXT NOT NULL CHECK (source_type IN ('payment','payment_event','expense','adjustment')),
   source_id INTEGER NOT NULL,
   source_event TEXT NOT NULL,                       -- 'received','fulfilled_late','settled','approved','paid','<x>_reversal', 'adjustment'
@@ -464,6 +466,7 @@ CREATE TABLE mail_capture (
 CREATE TABLE close_snapshots (
   id INTEGER PRIMARY KEY, term_id INTEGER NOT NULL UNIQUE REFERENCES terms(id),
   taken_at TEXT NOT NULL, taken_by INTEGER NOT NULL REFERENCES users(id),
+  watermark_entry_id INTEGER NOT NULL,                -- max(journal_entries.id) visible inside the close transaction
   totals_json TEXT NOT NULL, content_sha256 TEXT NOT NULL, created_at TEXT NOT NULL
 ) STRICT;                                            -- triggers: BEFORE UPDATE / DELETE -> RAISE(ABORT)
 CREATE TABLE close_checks (
@@ -518,8 +521,10 @@ SUCCEEDED --full refund----------------------------------> REFUNDED
 | EXPIRED | any | SUCCEEDED + UNFULFILLED, `APPLIED_UNFULFILLED`, reason `LATE_AFTER_EXPIRED` | Dr 1100 / Cr 2000 |
 | FAILED | any (prior failure) | SUCCEEDED + UNFULFILLED, `APPLIED_UNFULFILLED`, reason `LATE_AFTER_FAILED` | Dr 1100 / Cr 2000 |
 | any, payment's `term_id` is a **CLOSED** term (only EXPIRED/FAILED can exist there) | — | same as the EXPIRED/FAILED rows; fulfillment is not attempted | posts to the **OPEN** term with memo "prior-term payment {term label}" |
-| SUCCEEDED / REFUNDED (a second success for the same payment) | — | outcome `UNAPPLIED_RECEIPT`, reason `DUPLICATE_RECEIPT`; payment row unchanged | `payment_event` entry Dr 1100 / Cr 2000 |
+| SUCCEEDED / REFUNDED, and the event matches identity, user, currency and amount (a fresh `event_id` for a payment already paid) | — | outcome `NO_EFFECT`, reason `REPEATED_NOTIFICATION`: treated as a repeated notification, not proof of extra money; payment row unchanged | **none**: no journal entry, no fulfillment, not eligible for settlement, no obligation, not in the problem queue, does not block close |
 | any, but identity/amount/currency does not match, or `public_id` unknown | — | outcome `UNAPPLIED_RECEIPT` (reason `AMOUNT_MISMATCH`, `CURRENCY_MISMATCH`, `USER_MISMATCH`, `UNKNOWN_PAYMENT`); payment row unchanged | if `currency='INR'` and `amount>0`: Dr 1100 / Cr 2000 for the event's amount, else none |
+
+**One charge per payment.** This simulator models exactly one charge per `payments` row. A genuine second charge would need its own receipt identity (a separate payment or charge id) and is outside this scope. Mismatched or unknown-payment successes keep their `UNAPPLIED_RECEIPT` handling above, and late successes after `EXPIRED`/`FAILED` keep theirs; only a *matching* success for an already `SUCCEEDED`/`REFUNDED` payment is a no-effect repeat. The same `event_id` with the same body returns its stored outcome; the same `event_id` with a changed body is `EVENT_ID_REUSED` (§5).
 
 `payment.failed` events: apply `CREATED/PENDING → FAILED` (outcome `APPLIED`); for any other payment state, or when identity/amount/currency do not match, outcome `NO_EFFECT` with a reason (a failure event moves no money and is never booked).
 
@@ -588,7 +593,7 @@ Members (plain users) have no staff permissions. `comms.mail_viewer` and `receip
 ## 5. Payment simulator and webhook
 
 Local simulator, no network. `payments/simulator.py`:
-- `POST /pay/{public_id}/outcome` (browser, session + CSRF + ownership): field `outcome ∈ {success, fail}`. The server builds the event body, assigns a fresh `event_id`, and **signs it server-side**: `sig = HMAC_SHA256(SIM_SECRET, f"{timestamp}.{raw_body}")`, then calls the same `payments.webhook.handle_event(...)` used by the HTTP webhook. The browser never sees the secret or signature.
+- `POST /pay/{public_id}/outcome` (browser, session + CSRF + ownership): field `outcome ∈ {success, fail}`. The simulator models **one charge per payment**: pressing success on an already `SUCCEEDED`/`REFUNDED` payment sends a fresh `event_id` that is recorded as `NO_EFFECT` (`REPEATED_NOTIFICATION`) and moves no money. The server builds the event body, assigns a fresh `event_id`, and **signs it server-side**: `sig = HMAC_SHA256(SIM_SECRET, f"{timestamp}.{raw_body}")`, then calls the same `payments.webhook.handle_event(...)` used by the HTTP webhook. The browser never sees the secret or signature.
 - `POST /webhooks/payments` (external-shaped; used by tests and `scripts/sim_webhook.py`). Header `X-Signature: t=<unix>,v1=<hex>`.
 - Event JSON: `{"event_id","type":"payment.succeeded|payment.failed","payment_id":"<public_id>","user_id":int,"amount_paise":int,"currency":"INR"}`.
 - `SIM_SECRET` from env `CLUBLEDGER_SIM_SECRET`; in `dev`/`test` a random secret is generated once into `data/.sim_secret` (gitignored); `prod` refuses to start without it.
@@ -664,19 +669,19 @@ Checklist (all must pass or `CLOSE_BLOCKED` with the failing checks returned; no
 2. No expenses in `SUBMITTED`/`APPROVED`.
 3. No live `HELD` ticket holds and no `RESERVED` merch orders.
 4. All journal entries for the term are `POSTED` (no `DRAFT`); each balances.
-5. **Cumulative** balances as of the close instant: 2100 Reimbursements Payable = 0 and 2000 Unfulfilled Obligation = 0.
-6. **Cumulative** 1100 Clearing balance = 0 (all received money settled — run `settle` first).
+5. **Live cumulative** balances (§11: every already-posted entry, regardless of `entry_date`, including entries posted in the same second): 2100 Reimbursements Payable = 0 and 2000 Unfulfilled Obligation = 0. A liability posted moments before the close attempt therefore blocks it.
+6. **Live cumulative** 1100 Clearing balance = 0 (all received money settled — run `settle` first).
 7. Every `PAID` expense has ≥ 1 receipt.
 8. Close instant > `starts_at` of the term. (Early close is allowed; it does not require the academic year to have ended and does not affect memberships, §1.3.)
 
 Then, in the same transaction:
-1. Build `totals_json` from §11 (opening balance, period movement, closing balance for every account; income and expense by account; per-event and per-source summaries; counts). `content_sha256 = sha256(canonical JSON)`. Insert `close_snapshots` (triggers forbid UPDATE/DELETE) and `close_checks`.
+1. Capture the **watermark** `W = max(journal_entries.id)`. Because the close runs under `BEGIN IMMEDIATE`, no other writer can post while it runs: the checks, the snapshot and `W` all see exactly the same set of posted entries, and any entry posted later has `id > W` **even if its `entry_date` equals the close second**. Build `totals_json` from §11 using `W` for closing balances and `term_id` for movements (opening balance, signed period movement, closing balance for every balance-sheet account; income and expense movements; per-event and per-source summaries; counts; `W`). `content_sha256 = sha256(canonical JSON)`. Insert `close_snapshots` (with `watermark_entry_id = W`; triggers forbid UPDATE/DELETE) and `close_checks`.
 2. Set the term `CLOSED`, `closed_at = ends_at = now`.
 3. Insert the next term `OPEN` with `starts_at = (closed term).ends_at` exactly (no gap, no overlap).
 4. Memberships are untouched.
 
 **After close:**
-- Journal entries are inserted only into the OPEN term (trigger). Closed-term journal data never changes.
+- Journal entries are inserted only into the OPEN term (trigger). Closed-term journal data never changes. An entry posted after close in the same second as the close lands in the new term (period membership is by `term_id`, never by timestamp), has `id > W`, and is excluded from the closed snapshot.
 - New purchases (including those for events/products created in an earlier term) get the new term's `term_id` and post to it. Late callbacks for payments created in the closed term follow §3.1 and post to the OPEN term with a prior-term memo.
 - **Corrections are adjusting entries in the OPEN term** (`source_type='adjustment'`, `term_id` = OPEN, `adjusts_term_id` = the closed term being corrected, memo required, permission `close.run`). They appear in the OPEN term's movements and in an "Adjustments to prior terms" section of reports. The snapshot is never modified.
 
@@ -686,11 +691,16 @@ Then, in the same transaction:
 
 Two distinct measures, never mixed:
 
-- **Balance as of a cutoff** (cumulative, for balance-sheet accounts 1000, 1100, 2000, 2100): `balance(account, cutoff) = Σ over all POSTED lines of that account in entries with entry_date < cutoff, across all terms`. Assets: Σdebit − Σcredit. Liabilities: Σcredit − Σdebit. Default cutoff = now. **Cash on hand is always a cumulative balance**, so it does not reset when a term rolls over. Equivalently, a term's opening balance is the previous snapshot's closing balance (a test asserts closing(N) == opening(N+1) for every balance account).
+- **Balance** (cumulative, for balance-sheet accounts 1000, 1100, 2000, 2100). Assets: Σdebit − Σcredit; liabilities: Σcredit − Σdebit; over POSTED lines across all terms. Timestamps have second precision and `entry_date = clock.now()`, so two entries can share a timestamp with a close or a report; **ordering therefore uses the monotonically increasing entry `id`, not time.** Three cutoffs are defined and used consistently:
+  - **Live** (default for the cash summary, the integrity page and close checks 5–6): every POSTED entry that exists at query time, with no date predicate. Same-second entries are always included.
+  - **Watermark** (`watermark_id = W`): POSTED entries with `id <= W`. Used for closed-term closing balances and snapshot figures. Entries posted later have a larger `id` and are excluded even at an identical timestamp.
+  - **Historical** (`at = T`, for reports on past dates): POSTED entries with `entry_date <= T` (inclusive, second precision). Because inclusion is by timestamp, a historical query is exact only for instants that are not shared with a later entry; for term boundaries use the watermark.
+  **Cash on hand is always a cumulative balance** (live or watermark), so it does not reset when a term rolls over.
+  **Opening and closing.** For each balance-sheet account and term N: `closing(N) = balance at watermark W_N`; `opening(N) = closing(N−1)` (zero for the first term); `movement(N)` is the signed (asset: Dr−Cr, liability: Cr−Dr) sum of lines whose entry has `term_id = N`. Invariant, tested per account: **`opening(N) + movement(N) = closing(N)`**. It holds because every entry with `W_{N−1} < id <= W_N` belongs to term N (terms are opened only by the previous term's close and entries go only into the OPEN term). Income and expense accounts are period accounts: opening 0, closing = movement.
 - **Period movement** (for a term): `movement(account, term_id) = Σdebit and Σcredit of POSTED lines in entries with that term_id` (not netted across terms). Income and expense reports use movement of 4xxx/5xxx for the chosen term; "net surplus for the term" = Σ income movement − Σ expense movement. A cumulative net across terms = the sum of terms' nets; it is shown separately, not as cash.
 
 Reports:
-- **Cash summary** (default now, optional `?as_of=`): cash on hand = balance(1000), in clearing = balance(1100), unfulfilled obligations = balance(2000), reimbursements payable = balance(2100); plus this term's movements.
+- **Cash summary** (default live; optional `?as_of=T` uses the historical cutoff): cash on hand = balance(1000), in clearing = balance(1100), unfulfilled obligations = balance(2000), reimbursements payable = balance(2100); plus this term's movements.
 - **Income/expense**: by account for a term, plus "Adjustments to prior terms" block.
 - **Drill-down**: balance or movement → account → journal entry → source document (payment, event, expense, order, ticket) with links; each level's sums equal the parent's.
 - **Event report** (spans all terms, with a per-term split): `sold = count(tickets WHERE status IN ('ISSUED','USED'))`; `attended = count(USED)`; `no_shows = sold − attended`; `gross = Σ tickets.price_paise over status IN ('ISSUED','USED','REFUNDED')`; `refunded = Σ price over REFUNDED`; `net_proceeds = gross − refunded`. **Never join `payments` to `tickets` to sum `payments.amount_paise`** (a multi-ticket payment would be counted once per ticket). All money for an event comes from ticket prices.
@@ -851,11 +861,11 @@ def post_expense_approved(conn, expense) -> int
 def post_expense_paid(conn, expense) -> int
 
 # reports/service.py (C)
-def balance_as_of(conn, account_code: str, cutoff: str) -> int
+def balance(conn, account_code: str, *, at: str | None = None, watermark_id: int | None = None) -> int   # neither: live; at: entry_date <= at; watermark_id: id <= it (mutually exclusive)
 def movement(conn, account_code: str, term_id: int) -> Movement        # debit_paise, credit_paise
-def cash_summary(conn, as_of: str, term_id: int) -> CashSummary
+def cash_summary(conn, term_id: int, *, at: str | None = None) -> CashSummary    # live unless `at` is given
 def income_expense(conn, term_id: int) -> IncomeExpense
-def drilldown(conn, *, account_code=None, entry_id=None, term_id=None, as_of=None) -> DrillDown
+def drilldown(conn, *, account_code=None, entry_id=None, term_id=None, at=None, watermark_id=None) -> DrillDown
 
 # comms (C)
 def publish_announcement(conn, announcement_id, actor_id) -> int       # enqueues mail
@@ -887,8 +897,8 @@ Each command opens its own `unit_of_work`, is idempotent, and is safe to run fro
 
 | Command | Effect |
 |---|---|
-| `migrate` | applies `migrations/*.sql` in number order (§1), records checksum in `schema_migrations` |
-| `reset-db` | dev/test only: deletes and recreates the SQLite file |
+| `migrate` | applies the contiguous available prefix of `migrations/*.sql` by number (§1); rejects internal gaps and changed applied files; records checksums in `schema_migrations` |
+| `reset-db --confirm <path>` | explicit manual dev/test command (§1 lifecycle): deletes and recreates that exact SQLite file; refuses in `prod`; never invoked implicitly |
 | `seed [--demo]` | roles, permissions, accounts, plans, first term, demo data |
 | `expire-holds` | `events.expire_holds` + `store.expire_orders` + `payments.expire_payments`; releases capacity/stock exactly once; cancels `PENDING` memberships whose payment expired |
 | `send-reminders` | marks lapsed memberships `EXPIRED`; enqueues `RENEW_30D`, `RENEW_7D`, `EXPIRED` mail with `dedupe_key = reminder:{kind}:{membership_id}`; skips users who already hold a later-year `PENDING`/`ACTIVE` membership |

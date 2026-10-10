@@ -37,10 +37,10 @@ docs/                        shared; CONTRACT/REQUIREMENTS/BUILD_ORDER changes n
 scripts/{sim_webhook.py,demo_seed.py}                A
 ```
 
-**Migration ownership.** Filenames and numbers are reserved above. **Written order is not apply order:** the migrator applies strictly by number and refuses to run if any of `0001`–`0010` is missing. Therefore:
-1. At H0, A commits no-op placeholders `0003`–`0010` (`-- reserved for <owner>`), so numbering is contiguous and C's `0006_journal.sql` can be developed and applied in a dev database before B's `0003`–`0005` are real. C's early migration only references `terms` (0001), so it works with B's files still empty.
-2. Owners replace their placeholders in place. Until the first merge of a migration to `master`, edits are allowed; local DBs are rebuilt with `reset-db` (the migrator reports a checksum mismatch otherwise). After a migration reaches `master` it is frozen; later changes need a new file.
-3. A migration may reference only lower-numbered tables (full dependency check in CONTRACT.md §1). Cross-owner FKs that would point at a later number are replaced by polymorphic `ref_table/ref_id` (payments) or reordered (tasks before expenses).
+**Migration ownership and lifecycle.** Filenames and numbers are reserved above, but files exist only when genuine. There are no placeholder files. The migrator applies strictly by number over the contiguous available prefix, so development may proceed with `0001`–`0002` alone; it rejects internal gaps and changed applied migrations and never deletes a database (CONTRACT.md §1).
+1. A lands `0001`, `0002` first. B lands `0003`, `0004`, `0005` as genuine migrations as they are written.
+2. C authors `0006_journal.sql` early on `codex/treasury-comms` and tests the journal with a **test-only** fixture that applies the explicit subset `[0001, 0006]` (`0006` depends only on `terms`/`users`). Integration to `master` applies `0006` only after genuine `0003`–`0005` are on `master`; merging it earlier would create an internal gap. The subset fixture is not the production sequence.
+3. Until a migration reaches `master`, its owner may edit it on their branch and rebuild local databases by hand (`reset-db --confirm <path>`, explicit, dev/test only). After it reaches `master` it is frozen; changes need a new file. Cross-owner FKs that would point at a later number are replaced by polymorphic `ref_table/ref_id` (payments) or reordered (tasks before expenses).
 
 **Interfaces between owners (frozen at H2; change only by agreement and a docs update):** the types in CONTRACT.md §13.1 and signatures in §13.3. Until real implementations exist, A provides stubs in `clubledger/_stubs.py` raising `NotImplementedError` so everyone can import and type against them from H0.
 
@@ -60,7 +60,7 @@ D: pytest.ini/conftest/factories/req_coverage (H0–H2) → tests per area → e
 ```
 
 Hard blockers:
-1. `core/db.py` + `migrate` CLI + contiguous migration placeholders (A) block everyone's DB work → **done by H1**.
+1. `core/db.py` + `migrate` CLI (contiguous-prefix rules) + `0001`/`0002` (A) block everyone's DB work → **done by H1**.
 2. `journal.post_entry` and the 0006 triggers (C) block payments end-to-end and every report → **done by H2**.
 3. `core/auth.py` + structural `base.html` (A + B) block authenticated pages → **H3**.
 4. `payments.handle_event` + `wiring.build_services` (A) block fulfillment tests → **H4**.
@@ -70,9 +70,9 @@ Hard blockers:
 
 | Hours | A (core/auth/db/payments/integration) | B (membership/events/store; structural UI) | C (journal → rest) | D (tests/a11y/evidence) |
 |---|---|---|---|---|
-| H0–1 | repo scaffold, `config`, `core/db.py`, `core/clock.py`, `core/types.py`, `migrate`, placeholders 0003–0010, `0001`, `0002` | `base.html` slots + HTMX/CSRF header | `0006_journal.sql` + triggers, accounts seed | `pytest.ini`, `conftest.py` (temp DB, clock, client), `req_coverage.py`, `req_status.json`, early CI job (`--mode progress`) |
+| H0–1 | repo scaffold, `config`, `core/db.py`, `core/clock.py`, `core/types.py`, `migrate`, `0001`, `0002` | `base.html` slots + HTMX/CSRF header | `0006_journal.sql` (on `codex/treasury-comms`, tested with the [0001, 0006] subset fixture) + triggers, accounts seed | `pytest.ini`, `conftest.py` (temp DB, clock, client), `req_coverage.py`, `req_status.json`, early CI job (`--mode progress`) |
 | H1–2 | `auth` (register/login/logout/session/CSRF/perm dep), `seed` roles, `ratelimit` | `0003`, `0004`; plans seed | `journal.service` (`post_entry`, reversals, `post_payment_received`) | factories; JNL-01..05 tests |
-| H2–3 | `pricing.py`, `payments.service` skeleton, simulator routes | `/join`, `/events` read-only pages | `post_settlement`, `balance_as_of`, `movement`, reports skeleton | AUTH-* and PAY-02..05 tests |
+| H2–3 | `pricing.py`, `payments.service` skeleton, simulator routes | `/join`, `/events` read-only pages | `post_settlement`, `balance` (live/watermark/historical), `movement`, reports skeleton | AUTH-* and PAY-02..05 tests |
 | H3–5 | `handle_event` (trusted/untrusted boundary), `wiring.py`, `settle`, `expire` hooks | `fulfill_dues`, `member_code/qr`, `/members/card`, `/verify` | reports pages, drill-down | MEM-*, PAY-* tests |
 | H5–7 | refund, mismatch/late-success/obligation handling, `resolve_unfulfilled`/`resolve_receipt` | `create_hold`, `fulfill_ticket_hold`, ticket page, check-in, event report | `0007` tasks, `0008` expenses+receipts, submit/approve/pay + journal | EVT-*, E2E-01 (first slice) |
 | **H7** | **First-slice milestone: E2E-01 green or stop and fix** | | | |
@@ -100,11 +100,11 @@ Hard blockers:
 
 ## 5. Integration protocol
 
-- **Branches.** `master` is the integration branch and must always pass early CI. Working branches use the agreed `codex/*` names: `codex/contracts` (docs, current), `codex/core` (A), `codex/members-events-store` (B), `codex/finance-comms` (C), `codex/qa` (D). Feature sub-branches use the same prefix, e.g. `codex/core-payments`. Merge to `master` by PR with one reviewer from another owner; no one pushes to `master` directly.
+- **Branches.** `master` is the integration branch and must always pass early CI. The exact working branches are: `codex/contracts` (docs, current), `codex/core-payments` (A), `codex/member-events-store` (B), `codex/treasury-comms` (C), `codex/qa-evidence` (D). Sub-branches, if needed, extend the owner's branch name (e.g. `codex/core-payments-webhook`). Merge to `master` by PR with one reviewer from another owner; no one pushes to `master` directly.
 - **Contract drift.** If an implementation needs a signature or schema change, edit CONTRACT.md in the same PR and tag A + D.
 - **CI stages (do not pretend completeness).**
-  - *Early CI (every PR, from H1):* `pytest -q`, `python -m tests.req_coverage --mode progress` (reports `implemented N / 108`, never fails for unimplemented IDs, fails on unknown markers or on an `implemented` ID without passing pos+neg tests), static `tests/contract` checks (SQL parameterization, clock use, migration order/STRICT/FK dependency, no import-time registration).
-  - *Final gate (H22+):* `python -m tests.req_coverage --mode final` — fails unless every ID is `implemented` or has a recorded deferral — plus `check-integrity` on a seeded demo. Evidence is generated only from real runs.
+  - *Early CI (every PR, from H1):* `pytest -q`, `python -m tests.req_coverage --mode progress` (reports `implemented N / 108`; blocks on any failing test or static check, on unknown requirement IDs, and on an `implemented` ID without passing positive and negative tests; unimplemented requirements alone never block), static `tests/contract` checks (SQL parameterization, clock use, migration order/STRICT/FK dependency, no import-time registration).
+  - *Final gate (H22+):* `python -m tests.req_coverage --mode final` — fails unless every ID is `implemented` or has a recorded deferral — plus `check-integrity` on a seeded demo. The final evidence discloses every deferral and the actual results; it is generated only from real runs.
 - **Cut lines if time is short** (in order dropped, each recorded as `deferred` with a reason in `tests/req_status.json`): handover → adjusting entries UI (service stays) → task board polish → refunds for merch → announcement suppression edge cases. **Never dropped:** PAY-02..05, PAY-08, PAY-09, PAY-10, JNL-01, JNL-02, EVT-03, EVT-05, AUTH-05, AUTH-07, E2E-01.
 
 ## 6. Defaults chosen (to avoid scope debates)
