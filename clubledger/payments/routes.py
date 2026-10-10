@@ -219,12 +219,20 @@ def get_admin_payments(
         data = {
             "payments": payments,
             "unapplied_receipts": unapplied_events,
+            "csrf_token": session.csrf_token,
+            "problem": problem,
+            "unfulfilled": unfulfilled,
+            "unapplied": unapplied,
         }
 
         if "application/json" in request.headers.get("accept", ""):
-            return JSONResponse(data)
+            return JSONResponse({"payments": payments, "unapplied_receipts": unapplied_events})
 
-        return JSONResponse(data)  # JSON fallback for admin API
+        return templates.TemplateResponse(
+            request=request,
+            name="payments/admin_payments.html",
+            context=data,
+        )
     finally:
         conn.close()
 
@@ -245,7 +253,9 @@ def post_admin_refund(
     with unit_of_work() as conn:
         refund_payment(conn, handlers=handlers, payment_id=payment_id, actor_id=session.user_id)
 
-    return JSONResponse({"status": "ok", "refunded": payment_id})
+    if "application/json" in request.headers.get("accept", ""):
+        return JSONResponse({"status": "ok", "refunded": payment_id})
+    return RedirectResponse(url="/admin/payments?problem=1", status_code=303)
 
 
 @router.post("/admin/payments/{payment_id}/fulfill")
@@ -266,7 +276,9 @@ def post_admin_fulfill(
             conn, handlers=handlers, payment_id=payment_id, action="FULFILL", actor_id=session.user_id
         )
 
-    return JSONResponse({"status": "ok", "fulfilled": payment_id})
+    if "application/json" in request.headers.get("accept", ""):
+        return JSONResponse({"status": "ok", "fulfilled": payment_id})
+    return RedirectResponse(url="/admin/payments?problem=1", status_code=303)
 
 
 @router.post("/admin/payment-events/{event_id}/resolve")
@@ -293,4 +305,6 @@ def post_admin_resolve_receipt(
             conn, event_row_id=event_id, action=action_literal, actor_id=session.user_id, note=note
         )
 
-    return JSONResponse({"status": "ok", "resolved_event": event_id, "action": action})
+    if "application/json" in request.headers.get("accept", ""):
+        return JSONResponse({"status": "ok", "resolved_event": event_id, "action": action})
+    return RedirectResponse(url="/admin/payments?problem=1", status_code=303)

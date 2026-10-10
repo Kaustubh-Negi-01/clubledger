@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Payments Administration - ClubLedger{% endblock %}
+{% block header_title %}Payments Administration{% endblock %}
+
+{% block head %}
+<style>
+  .admin-container { max-width: 1100px; margin: 1rem auto; padding: 0 1rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .filters { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; }
+  .filters a { padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.9rem; background: #e9ecef; color: #495057; }
+  .filters a.active { background: #1a73e8; color: white; }
+  .section-title { font-size: 1.25rem; margin: 1.5rem 0 0.75rem 0; color: #212529; border-bottom: 2px solid #dee2e6; padding-bottom: 0.5rem; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-radius: 6px; overflow: hidden; }
+  th, td { padding: 0.75rem 1rem; text-align: left; font-size: 0.875rem; border-bottom: 1px solid #e9ecef; }
+  th { background: #f8f9fa; font-weight: 600; color: #495057; }
+  tr:hover { background: #f8f9fa; }
+  .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+  .badge-success { background: #d4edda; color: #155724; }
+  .badge-warning { background: #fff3cd; color: #856404; }
+  .badge-danger { background: #f8d7da; color: #721c24; }
+  .badge-secondary { background: #e2e3e5; color: #383d41; }
+  .btn { padding: 0.35rem 0.75rem; border-radius: 4px; border: none; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+  .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+  .btn-refund { background: #dc3545; color: white; }
+  .btn-fulfill { background: #28a745; color: white; }
+  .btn-dismiss { background: #6c757d; color: white; }
+  .action-forms { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+  .note-input { padding: 0.25rem 0.5rem; font-size: 0.75rem; border: 1px solid #ced4da; border-radius: 4px; width: 140px; }
+  .empty-state { padding: 2rem; text-align: center; color: #6c757d; background: #fdfdfe; border-radius: 6px; border: 1px dashed #dee2e6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+  <div class="filters">
+    <a href="/admin/payments" class="{% if not problem and not unfulfilled and not unapplied %}active{% endif %}">All Payments</a>
+    <a href="/admin/payments?problem=1" class="{% if problem %}active{% endif %}">Problem Queue</a>
+    <a href="/admin/payments?unfulfilled=1" class="{% if unfulfilled %}active{% endif %}">Unfulfilled Obligations</a>
+    <a href="/admin/payments?unapplied=1" class="{% if unapplied %}active{% endif %}">Unapplied Receipts</a>
+  </div>
+
+  <h2 class="section-title">Payments</h2>
+  {% if payments %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Public ID</th>
+        <th>User</th>
+        <th>Purpose</th>
+        <th>Amount</th>
+        <th>Status</th>
+        <th>Fulfillment</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in payments %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td><code>{{ p.public_id }}</code></td>
+        <td>{{ p.user_id }}</td>
+        <td>{{ p.purpose }}</td>
+        <td>₹{{ "%.2f"|format(p.amount_paise / 100) }}</td>
+        <td>
+          {% if p.status == 'SUCCEEDED' %}
+            <span class="badge badge-success">{{ p.status }}</span>
+          {% elif p.status == 'FAILED' or p.status == 'EXPIRED' %}
+            <span class="badge badge-danger">{{ p.status }}</span>
+          {% elif p.status == 'REFUNDED' %}
+            <span class="badge badge-secondary">{{ p.status }}</span>
+          {% else %}
+            <span class="badge badge-warning">{{ p.status }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if p.fulfillment == 'FULFILLED' %}
+            <span class="badge badge-success">{{ p.fulfillment }}</span>
+          {% elif p.fulfillment == 'UNFULFILLED' %}
+            <span class="badge badge-danger">{{ p.fulfillment }}</span>
+          {% else %}
+            <span class="badge badge-secondary">{{ p.fulfillment }}</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="action-forms">
+            {% if p.status == 'SUCCEEDED' and p.fulfillment == 'UNFULFILLED' %}
+            <form method="post" action="/admin/payments/{{ p.id }}/fulfill">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-fulfill btn-sm">Fulfill</button>
+            </form>
+            {% endif %}
+
+            {% if p.status == 'SUCCEEDED' %}
+            <form method="post" action="/admin/payments/{{ p.id }}/refund">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-refund btn-sm" onclick="return confirm('Refund this payment?');">Refund</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">No payments found matching the current filter.</div>
+  {% endif %}
+
+  {% if problem or unapplied %}
+  <h2 class="section-title">Unapplied Receipts</h2>
+  {% if unapplied_receipts %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Event ID</th>
+        <th>Claimed Public ID</th>
+        <th>User ID</th>
+        <th>Amount</th>
+        <th>Reason</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for evt in unapplied_receipts %}
+      <tr>
+        <td>{{ evt.id }}</td>
+        <td><code>{{ evt.event_id }}</code></td>
+        <td><code>{{ evt.claimed_public_id or '—' }}</code></td>
+        <td>{{ evt.claimed_user_id or '—' }}</td>
+        <td>{% if evt.currency == 'INR' %}₹{{ "%.2f"|format(evt.amount_paise / 100) }}{% else %}{{ evt.currency }} {{ evt.amount_paise }}{% endif %}</td>
+        <td><span class="badge badge-warning">{{ evt.reason or 'UNAPPLIED' }}</span></td>
+        <td>
+          <div class="action-forms">
+            <form method="post" action="/admin/payment-events/{{ evt.id }}/resolve">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="action" value="REFUND">
+              <button type="submit" class="btn btn-refund btn-sm" onclick="return confirm('Refund this receipt?');">Refund</button>
+            </form>
+
+            <form method="post" action="/admin/payment-events/{{ evt.id }}/resolve">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="action" value="DISMISS">
+              <input type="text" name="note" class="note-input" placeholder="Dismissal reason" required>
+              <button type="submit" class="btn btn-dismiss btn-sm">Dismiss</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">No unapplied receipts currently in problem queue.</div>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -623,6 +623,7 @@ def resolve_receipt(
         raise DomainError("VALIDATION", 422, "Dismissal requires an explanatory note")
 
     now = clock.now()
+    resolution_val = "REFUNDED" if action == "REFUND" else "DISMISSED"
     _reverse_all_for_source(
         conn, journal, "payment_event", event_row_id, memo=f"Resolve receipt ({action}): {note.strip()}"
     )
@@ -633,7 +634,7 @@ def resolve_receipt(
         SET resolution = ?, resolved_by = ?, resolved_at = ?, resolution_note = ?
         WHERE id = ?;
         """,
-        (action, actor_id, now, note.strip(), event_row_id),
+        (resolution_val, actor_id, now, note.strip(), event_row_id),
     )
 
 

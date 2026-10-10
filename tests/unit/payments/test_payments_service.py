@@ -558,3 +558,108 @@ def test_target_expired_hold_prevents_fulfillment(test_db: str, test_handlers: H
         assert journal.received_calls[0] == (p.id, False)
     finally:
         conn.close()
+
+
+def test_settled_payment_refund_reverses_all_entries(test_db: str, test_handlers: Handlers):
+    """Refunding a settled payment must reverse both received and settlement journal entries."""
+    from clubledger.journal import service as journal_svc
+
+    conn = connect(test_db)
+    try:
+        p = create_payment(
+            conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+        )
+        payload = json.dumps({
+            "event_id": "evt_settled_succ",
+            "type": "payment.succeeded",
+            "payment_id": p.public_id,
+            "user_id": 1,
+            "amount_paise": 25000,
+            "currency": "INR",
+        }).encode("utf-8")
+
+        # 1. Success event -> posts received Dr 1100 / Cr 4000
+        out = handle_event(conn, test_handlers, payload, "t=1,v1=a", "2026-08-01T10:00:00Z", journal=journal_svc)
+        assert out.outcome == "APPLIED"
+
+        # 2. Settle payment -> posts Dr 1000 / Cr 1100
+        settled_count = settle_payments(conn, as_of="2026-08-03T10:00:00Z", journal=journal_svc)
+        assert settled_count == 1
+
+        # Check posted journal entries count for this payment (received + settlement = 2)
+        cur = conn.execute(
+            "SELECT count(*) FROM journal_entries WHERE source_type = 'payment' AND source_id = ? AND status = 'POSTED';",
+            (p.id,),
+        )
+        assert cur.fetchone()[0] == 2
+
+        # 3. Refund the settled payment
+        refund_payment(conn, test_handlers, p.id, actor_id=1, journal=journal_svc)
+
+        # Check that 2 reversal entries were posted (reversal of settlement + reversal of receipt = total 4 entries)
+        cur2 = conn.execute(
+            "SELECT count(*) FROM journal_entries WHERE source_type = 'payment' AND source_id = ? AND status = 'POSTED';",
+            (p.id,),
+        )
+        assert cur2.fetchone()[0] == 4
+
+        # Net balance on clearing 1100 must be 0
+        from clubledger.reports.service import balance
+        b1100 = balance(conn, "1100")
+        assert b1100 == 0
+
+        # Net balance on cash 1000 must be 0
+        b1000 = balance(conn, "1000")
+        assert b1000 == 0
+    finally:
+        conn.close()
+
+
+def test_late_failed_payment_success_unfulfilled(test_db: str, test_handlers: Handlers):
+    """A valid payment.succeeded after prior failure sets SUCCEEDED+UNFULFILLED and books Dr 1100 / Cr 2000."""
+    from clubledger.journal import service as journal_svc
+
+    conn = connect(test_db)
+    try:
+        p = create_payment(
+            conn, user_id=1, purpose="DUES", ref_table="memberships", ref_id=10, amount_paise=25000
+        )
+
+        # 1. Send failure event
+        fail_payload = json.dumps({
+            "event_id": "evt_prior_fail",
+            "type": "payment.failed",
+            "payment_id": p.public_id,
+            "user_id": 1,
+            "amount_paise": 25000,
+            "currency": "INR",
+        }).encode("utf-8")
+        out_fail = handle_event(conn, test_handlers, fail_payload, "t=1,v1=a", "2026-08-01T10:00:00Z", journal=journal_svc)
+        assert out_fail.outcome == "APPLIED"
+
+        p_fail = conn.execute("SELECT status FROM payments WHERE id = ?;", (p.id,)).fetchone()
+        assert p_fail["status"] == "FAILED"
+
+        # 2. Late success arrives
+        succ_payload = json.dumps({
+            "event_id": "evt_late_after_fail",
+            "type": "payment.succeeded",
+            "payment_id": p.public_id,
+            "user_id": 1,
+            "amount_paise": 25000,
+            "currency": "INR",
+        }).encode("utf-8")
+        out_succ = handle_event(conn, test_handlers, succ_payload, "t=1,v1=a", "2026-08-01T12:00:00Z", journal=journal_svc)
+        assert out_succ.outcome == "APPLIED_UNFULFILLED"
+        assert out_succ.reason == "LATE_AFTER_FAILED"
+
+        p_row = conn.execute("SELECT status, fulfillment FROM payments WHERE id = ?;", (p.id,)).fetchone()
+        assert p_row["status"] == "SUCCEEDED"
+        assert p_row["fulfillment"] == "UNFULFILLED"
+
+        # Check journal: 1 entry posted (Dr 1100 / Cr 2000)
+        from clubledger.reports.service import balance
+        b2000 = balance(conn, "2000")
+        assert b2000 == 25000
+    finally:
+        conn.close()

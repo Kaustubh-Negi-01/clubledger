@@ -183,3 +183,66 @@ def test_admin_payments_permissions(setup_routes_db):
     admin_resp = client.get("/admin/payments", headers={"Accept": "application/json"})
     assert admin_resp.status_code == 200
     assert "payments" in admin_resp.json()
+
+
+def test_admin_payments_html_view_and_actions(setup_routes_db):
+    db_path, public_id, u1_id, u2_id = setup_routes_db
+    app = create_app()
+    client = TestClient(app)
+
+    with unit_of_work(db_path) as conn:
+        role_id = conn.execute("SELECT id FROM roles WHERE code = 'admin';").fetchone()["id"]
+        conn.execute(
+            "INSERT INTO user_roles (user_id, role_id, granted_at, created_at) "
+            "VALUES (?, ?, '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z');",
+            (u2_id, role_id),
+        )
+        token2, csrf2 = create_session(conn, u2_id)
+
+        # Mark payment as SUCCEEDED + UNFULFILLED to appear in problem queue
+        conn.execute(
+            "UPDATE payments SET status = 'SUCCEEDED', fulfillment = 'UNFULFILLED' WHERE public_id = ?;",
+            (public_id,),
+        )
+        p_row = conn.execute("SELECT id FROM payments WHERE public_id = ?;", (public_id,)).fetchone()
+        pid = p_row["id"]
+
+        # Insert unapplied receipt event
+        conn.execute(
+            """
+            INSERT INTO payment_events (
+                id, event_id, body_sha256, raw_body, type, payment_id,
+                claimed_user_id, claimed_public_id, amount_paise, currency,
+                outcome, reason, created_at
+            ) VALUES (
+                101, 'evt_unapp_1', 'sha', '{}', 'payment.succeeded', NULL,
+                99, 'pay_unknown', 5000, 'INR', 'UNAPPLIED_RECEIPT', 'UNKNOWN_PAYMENT', '2026-08-01T10:00:00Z'
+            );
+            """
+        )
+
+    client.cookies.set(COOKIE_SESSION, token2)
+
+    # 1. HTML view of problem queue
+    resp_html = client.get("/admin/payments?problem=1")
+    assert resp_html.status_code == 200
+    assert "Problem Queue" in resp_html.text
+    assert public_id in resp_html.text
+    assert "evt_unapp_1" in resp_html.text
+
+    # 2. POST refund form action (without JSON Accept -> 303 Redirect)
+    ref_resp = client.post(
+        f"/admin/payments/{pid}/refund",
+        data={"csrf_token": csrf2},
+        follow_redirects=False,
+    )
+    assert ref_resp.status_code == 303
+    assert ref_resp.headers["location"] == "/admin/payments?problem=1"
+
+    # 3. POST resolve unapplied receipt (DISMISS with note)
+    res_resp = client.post(
+        "/admin/payment-events/101/resolve",
+        data={"action": "DISMISS", "note": "Spurious receipt", "csrf_token": csrf2},
+        follow_redirects=False,
+    )
+    assert res_resp.status_code == 303
