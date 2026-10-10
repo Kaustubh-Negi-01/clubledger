@@ -1,0 +1,15 @@
+import { PGlite } from "@electric-sql/pglite";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+const root = join(import.meta.dirname, "..", "supabase");
+const db = new PGlite();
+await db.exec("set time zone 'UTC'");
+await db.exec(readFileSync(join(root, "dev", "pglite_prelude.sql"), "utf8"));
+for (const f of readdirSync(join(root, "migrations")).sort()) await db.exec(readFileSync(join(root, "migrations", f), "utf8"));
+await db.exec(readFileSync(join(root, "dev", "demo_seed.sql"), "utf8"));
+const q = async (s: string) => (await db.query<any>(s)).rows;
+console.log(await q("select (select count(*) from profiles) users, (select count(*) from memberships where status='ACTIVE') members, (select count(*) from tickets) tickets, (select count(*) from events) events, (select count(*) from journal_entries) entries, (select count(*) from mail_capture) captured"));
+console.log(await q("select code, public.account_balance(code) bal from accounts where type in ('ASSET','LIABILITY') order by code"));
+await db.query("select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false)");
+console.log((await q("select public.api_integrity() r"))[0].r.map((c: any) => `${c.ok ? "ok" : "FAIL"} ${c.name}`));
+console.log((await q("select public.api_admin_overview() r"))[0].r);

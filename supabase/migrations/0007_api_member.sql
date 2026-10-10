@@ -400,3 +400,13 @@ begin
     select k.id, k.title, k.status, k.due_on, f.title as fundraiser, f.id as fundraiser_id
       from public.tasks k join public.fundraisers f on f.id = k.fundraiser_id where k.owner_id = uid) t);
 end $$;
+
+-- Counts only; safe for the public landing page.
+create or replace function public.api_public_stats() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'members', (select count(*) from public.memberships where status = 'ACTIVE' and expires_at > public.app_now()),
+    'events', (select count(*) from public.events where status in ('ON_SALE','CLOSED')),
+    'tickets', (select count(*) from public.tickets where status in ('ISSUED','USED')),
+    'orders', (select count(*) from public.merch_orders where status in ('PAID','PICKED_UP')))
+$$;
