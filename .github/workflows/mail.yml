@@ -1,0 +1,24 @@
+name: Scheduled email delivery
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: clubledger-mail
+  cancel-in-progress: false
+jobs:
+  deliver:
+    # Enable only after provider setup and a real inbox test have succeeded.
+    if: vars.CLUBLEDGER_MAIL_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Invoke authenticated production worker
+        env:
+          CRON_SECRET: ${{ secrets.CLUBLEDGER_CRON_SECRET }}
+        run: |
+          test -n "$CRON_SECRET"
+          curl --fail --silent --show-error --max-time 90 \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            https://clubledger-gold.vercel.app/internal/cron/mail

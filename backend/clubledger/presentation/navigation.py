@@ -24,6 +24,7 @@ OPERATIONS_NAVIGATION = [
     ("store.manage", "/admin/store", "Inventory & pickup"),
     ("payments.admin", "/admin/payments", "Payments & refunds"),
     ("comms.publish", "/admin/announcements", "Publish updates"),
+    ("comms.mail_viewer", "/admin/mail", "Email delivery"),
     ("comms.mail_viewer", "/dev/mail", "Local mail capture"),
     ("close.run", "/admin/adjustments", "Prior-period corrections"),
     ("close.run", "/admin/close", "Semester close"),

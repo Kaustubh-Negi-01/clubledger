@@ -19,7 +19,7 @@
 
 - **Internal HTTP APIs:** FastAPI routes under `backend/clubledger/api/`. See `docs/API_REFERENCE.md` for the extracted endpoint list.
 - **Payment gateway:** local simulator. No Stripe/Razorpay integration or real bank/card charge.
-- **Email:** local outbox and capture tables. No SMTP delivery service.
+- **Email:** local outbox/capture for development; optional Resend or Brevo HTTPS delivery for production. Activation requires a provider account, verified sender and server-only configuration. Brevo has a temporary sender-address replacement option for accounts without an owned domain. See [email setup](../docs/EMAIL_DELIVERY.md).
 - **AI:** no runtime Gemini, Claude or OpenAI API integration. Those tools assisted development; subscriptions are not application dependencies.
 - **Fonts and graphics:** hosted locally; no external font service is needed at runtime.
 

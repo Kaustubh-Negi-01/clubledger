@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Email delivery · ClubLedger{% endblock %}
+{% block header_title %}Email delivery{% endblock %}
+{% block content %}
+<section class="panel">
+    <h2>{{ 'Email provider configured' if configured else 'Email setup required' }}</h2>
+    <p>{{ 'Announcements and renewal reminders are queued for delivery.' if configured else 'Messages stay queued until a provider and verified sender are configured.' }}</p>
+    <p class="muted">Accepted means the email provider accepted the message. It does not confirm inbox delivery or that it was read.</p>
+    <p>Queued: {{ counts.get('QUEUED', 0) }} · Accepted: {{ counts.get('SENT', 0) }} · Failed: {{ counts.get('FAILED', 0) }} · Suppressed: {{ counts.get('SUPPRESSED', 0) }}</p>
+    {% if counts.get('CAPTURED', 0) %}<p class="muted">Local demo captures: {{ counts.CAPTURED }}. These messages were not sent externally.</p>{% endif %}
+    {% if configured %}
+    <form method="post" action="/admin/mail/process">
+        <input type="hidden" name="csrf_token" value="{{ request.state.ui.csrf }}">
+        <button>Process queued emails</button>
+    </form>
+    {% endif %}
+</section>
+<section class="panel">
+    <h2>Recent messages</h2>
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th scope="col">Recipient</th><th scope="col">Subject</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Attempts</th><th scope="col">Last update</th></tr></thead>
+        <tbody>
+        {% for m in messages %}
+            <tr><td>{{ m.to_email }}</td><td>{{ m.subject }}</td><td>{{ 'Announcement' if m.kind == 'ANNOUNCEMENT' else 'Renewal reminder' }}</td><td>{{ 'Captured locally' if m.capture_id and m.status == 'SENT' else 'Accepted' if m.status == 'SENT' else m.status|title }}</td><td>{{ m.attempts }}</td><td>{{ m.processed_at or 'Awaiting processing' }}</td></tr>
+        {% else %}
+            <tr><td colspan="6">No emails queued yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</section>
+{% endblock %}

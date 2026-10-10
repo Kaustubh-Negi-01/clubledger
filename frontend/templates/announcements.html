@@ -42,7 +42,10 @@
                 Stay in the loop
             </h2>
             <p class="muted">
-                Subscribe to club updates. In this local demo, messages are captured locally rather than sent by email.
+                Subscribe to club updates. You can unsubscribe using the link in each email.
+                {% if request.state.ui.env != 'prod' %}
+                    This local demo captures messages without sending real email.
+                {% endif %}
             </p>
             <form action="/subscribe" method="post">
                 <input type="hidden" name="csrf_token" value="{{ request.state.pre_csrf }}">

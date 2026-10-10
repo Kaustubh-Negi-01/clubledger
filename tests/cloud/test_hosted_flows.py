@@ -50,3 +50,9 @@ from tests.e2e.test_refund_navigation import (
 from tests.unit.test_demo_dataset import (
     test_large_demo_append_preserves_existing_data_and_is_repeat_safe,
 )
+from tests.unit.test_email_delivery import (
+    settings,
+    test_acceptance_is_once_and_network_runs_without_writer_lock,
+    test_missing_provider_changes_nothing,
+    test_unsubscribe_and_synthetic_recipients_never_reach_provider,
+)

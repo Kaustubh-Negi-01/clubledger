@@ -48,7 +48,7 @@ Use your virtual environment's Python. The Supabase release passed 227 local tes
 
 The app covers membership cards and discounts, ticket reservations and admission, stock reservations and pickup, task boards, receipt-backed reimbursements, announcements, a double-entry journal, financial reports, semester snapshots and officer handover.
 
-Payments and email are **simulations**, including on the hosted demo. There is no real card charge, email delivery service or runtime AI API. The requirement evidence tracker is separate from the passing test count: 20/110 requirements were marked implemented before reorganization, with final certification incomplete.
+Payments remain **simulated**: no real card charge occurs. Announcement emails and automatic renewal reminders support real delivery through a configured email provider; local capture is separate. See [email setup and delivery status](docs/EMAIL_DELIVERY.md). There is no runtime AI API. The requirement evidence tracker is separate from the passing test count: 20/110 requirements were marked implemented before reorganization, with final certification incomplete.
 
 ## Documentation
 
@@ -59,6 +59,7 @@ Payments and email are **simulations**, including on the hosted demo. There is n
 - [Reviewer questions and code walkthroughs](docs/REVIEWER_PREPARATION.md)
 - [What moved and how it was verified](docs/REORGANIZATION.md)
 - [Supabase and Vercel deployment](docs/DEPLOYMENT.md)
+- [Announcement email delivery and renewal reminders](docs/EMAIL_DELIVERY.md)
 
 Original planning documents (`CONTRACT.md`, `REQUIREMENTS.md`, `BUILD_ORDER.md`) remain under `docs/`; historical paths in them may refer to the old layout. The new file guide describes the actual folder layout.
 

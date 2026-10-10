@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "fastapi",
-  "regions": ["bom1"]
+  "regions": ["bom1"],
+  "crons": [{"path": "/internal/cron/mail", "schedule": "30 0 * * *"}]
 }

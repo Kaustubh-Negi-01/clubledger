@@ -4,7 +4,7 @@
 import json
 from decimal import Decimal, InvalidOperation
 from typing import Annotated
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from clubledger.core.auth import (
     get_current_session,
@@ -218,6 +218,7 @@ def draft_announcement(
 @router.post("/admin/announcements/{announcement_id}/publish")
 def publish(
     request: Request,
+    background_tasks: BackgroundTasks,
     announcement_id: int,
     session: Annotated[Session, Depends(require_perm("comms.publish"))],
     csrf_token: Token,
@@ -226,6 +227,10 @@ def publish(
     verify_csrf(session, csrf_token)
     with unit_of_work() as conn:
         comms.publish(conn, announcement_id)
+    if get_env() == "prod":
+        from clubledger.comms.delivery import deliver_announcement
+
+        background_tasks.add_task(deliver_announcement, announcement_id)
     return redirect("/admin/announcements?notice=Published")
 
 

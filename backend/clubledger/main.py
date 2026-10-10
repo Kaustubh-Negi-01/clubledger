@@ -36,6 +36,11 @@ def create_app() -> FastAPI:
             return await call_next(request)
         if request.url.path == "/webhooks/payments":
             return await call_next(request)
+        if request.url.path == "/internal/cron/mail":
+            # The cron handler authenticates its own server-only bearer secret.
+            response = await call_next(request)
+            response.headers["Cache-Control"] = "no-store"
+            return response
         request.state.ui = viewer(request)
         # Club content requires a valid session even when a domain route also
         # supports public browsing. Auth forms and email opt-out links remain open.
@@ -219,6 +224,9 @@ def create_app() -> FastAPI:
     from clubledger.api.store import router as store_router
 
     app.include_router(store_router)
+    from clubledger.api.comms import router as comms_router
+
+    app.include_router(comms_router)
 
     @app.get("/")
     def index():

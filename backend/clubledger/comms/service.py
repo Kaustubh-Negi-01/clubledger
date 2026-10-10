@@ -7,6 +7,7 @@ from datetime import datetime
 
 from clubledger.core import clock
 from clubledger.core.errors import DomainError
+from clubledger.config import get_env
 
 
 def subscribe(conn, email, user_id=None):
@@ -113,13 +114,15 @@ def send_reminders(conn, as_of=None):
             )
         )
         if kind:
+            subscriber_id = subscribe(conn, row["email"], row["user_id"])
+            token = conn.execute("SELECT unsub_token FROM subscribers WHERE id=?", (subscriber_id,)).fetchone()[0]
             result = conn.execute(
                 "INSERT INTO mail_outbox(dedupe_key,to_email,subject,body,kind,ref_table,ref_id,status,created_at) VALUES(?,?,?,?,?,'memberships',?,'QUEUED',?) ON CONFLICT(dedupe_key) DO NOTHING",
                 (
                     f"reminder:{kind}:{row['id']}",
                     row["email"],
                     "Your ClubLedger membership",
-                    "Review your membership and renewal options at /join.",
+                    "Review your membership and renewal options at /join.\n\nUnsubscribe: /unsubscribe/" + token,
                     kind,
                     row["id"],
                     now,
@@ -142,6 +145,8 @@ def _capture(conn, row, now):
 
 def process_mail_outbox(conn, limit=100):
     """Recheck delivery eligibility, then capture or suppress queued messages locally."""
+    if get_env() == "prod":
+        raise DomainError("LOCAL_MAIL_DISABLED", 403, "Use the real email delivery worker in production.")
     processed = 0
     for row in conn.execute(
         "SELECT * FROM mail_outbox WHERE status='QUEUED' ORDER BY id LIMIT ?", (limit,)

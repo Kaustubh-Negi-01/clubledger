@@ -4,6 +4,9 @@ Extracted from route decorators in `backend/clubledger/api/`. Routes return HTML
 
 | Method | URL | Source file | Handler |
 | --- | --- | --- | --- |
+| GET | `/admin/mail` | `backend/clubledger/api/comms.py` | `mail_status` |
+| POST | `/admin/mail/process` | `backend/clubledger/api/comms.py` | `process_now` |
+| GET | `/internal/cron/mail` | `backend/clubledger/api/comms.py` | `scheduled_mail` (server-only bearer authentication) |
 | GET | `/auth/register` | `backend/clubledger/api/auth.py` | `get_register` |
 | POST | `/auth/register` | `backend/clubledger/api/auth.py` | `post_register` |
 | GET | `/auth/login` | `backend/clubledger/api/auth.py` | `get_login` |
