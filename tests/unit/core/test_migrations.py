@@ -251,3 +251,14 @@ def test_cli_migrate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: py
     captured_second = capsys.readouterr()
     assert "No pending migrations" in captured_second.out
 
+    # Test seed command
+    exit_code_seed = main(["seed", "--db", str(db_file)])
+    assert exit_code_seed == 0
+    captured_seed = capsys.readouterr()
+    assert "Seeded roles and permissions successfully." in captured_seed.out
+
+    # Second seed is idempotent
+    exit_code_seed_again = main(["seed", "--db", str(db_file)])
+    assert exit_code_seed_again == 0
+
+

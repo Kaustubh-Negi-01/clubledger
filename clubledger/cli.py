@@ -22,6 +22,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     migrate_parser.add_argument("--db", type=str, default=None, help="Path to SQLite database file")
     migrate_parser.add_argument("--as-of", type=str, default=None, help="Simulate execution as of ISO timestamp")
 
+    # seed command
+    seed_parser = subparsers.add_parser("seed", help="Seed roles and permissions")
+    seed_parser.add_argument("--db", type=str, default=None, help="Path to SQLite database file")
+    seed_parser.add_argument("--as-of", type=str, default=None, help="Simulate execution as of ISO timestamp")
+
     return parser.parse_args(argv)
 
 
@@ -40,10 +45,22 @@ def handle_migrate(db_path: str | None = None) -> int:
     return 0
 
 
+def handle_seed(db_path: str | None = None) -> int:
+    from clubledger.seed import seed_roles_and_permissions
+
+    config = get_config()
+    target_db = db_path or config.db_path
+
+    with unit_of_work(target_db) as conn:
+        seed_roles_and_permissions(conn)
+
+    print("Seeded roles and permissions successfully.")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
 
-    # G9: CLI --as-of is honored only when CLUBLEDGER_ENV is dev or test
     if args.as_of:
         env = os.environ.get("CLUBLEDGER_ENV", "dev").lower()
         if env not in {"dev", "test"}:
@@ -53,6 +70,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "migrate":
         return handle_migrate(args.db)
+    if args.command == "seed":
+        return handle_seed(args.db)
 
     print(f"Unknown command: {args.command}", file=sys.stderr)
     return 1
