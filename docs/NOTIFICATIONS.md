@@ -45,9 +45,9 @@ backend. Grant the restricted runtime role access only to the new table and its
 identity sequence, with a backend-only RLS policy. Browser roles receive no access.
 Existing business records and email scheduling are unaffected.
 
-## Release verification — 11 October 2026
+## Release verification â€” 11 October 2026
 
-- Local application suite: 275 passed, 23 cloud-only skipped.
+- Local application suite: 275 passed, 26 cloud-only skipped (including the three new PostgreSQL cases).
 - Additional real PostgreSQL notification tests: 3 passed in isolated schemas.
 - Production migration 0012 applied; existing business row counts unchanged.
 - Restricted backend read/write checked with a rolled-back probe.
@@ -55,3 +55,6 @@ Existing business records and email scheduling are unaffected.
 - Local browser verified the bell, full inbox and persistent mark-as-read behavior.
 
 These checks are observed results, not an evaluator score.
+
+- Live HTTPS verified: bell, inbox, mark-as-read persistence and static assets.
+- Signed-out inbox: browser redirect to login and JSON 401.
