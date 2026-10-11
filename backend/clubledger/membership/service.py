@@ -335,14 +335,19 @@ def lookup_member(
             "VALIDATION", 422, "Either member code or QR token must be provided"
         )
 
-    query = (
+    base_query = (
         "SELECT m.id, m.status, m.starts_at, m.expires_at, m.member_code, m.membership_year, u.name "
-        "FROM memberships m "
-        "JOIN users u ON m.user_id = u.id "
-        "WHERE (? IS NOT NULL AND m.member_code = ?) "
-        "   OR (? IS NOT NULL AND m.qr_token = ?);"
+        "FROM memberships m JOIN users u ON m.user_id = u.id WHERE "
     )
-    row = conn.execute(query, (code, code, qr_token, qr_token)).fetchone()
+    if code:
+        # The manual field intentionally accepts either the short member code or
+        # the full QR token. Avoid nullable-parameter predicates: PostgreSQL
+        # cannot infer a type for `? IS NOT NULL` while SQLite silently accepts it.
+        row = conn.execute(
+            base_query + "m.member_code = ? OR m.qr_token = ?;", (code, code)
+        ).fetchone()
+    else:
+        row = conn.execute(base_query + "m.qr_token = ?;", (qr_token,)).fetchone()
     if not row:
         return MemberCheck(
             active=False,

@@ -199,3 +199,41 @@ def test_verify_staff_permission(app_client, monkeypatch):
     res_ok = app_client.get("/verify")
     assert res_ok.status_code == 200
     assert "Staff Member Verification" in res_ok.text
+
+
+def test_verify_lookup_accepts_member_code_and_qr_token_in_one_field(app_client):
+    from clubledger.config import get_db_path
+
+    conn = connect(get_db_path())
+    conn.execute(
+        "INSERT INTO memberships(user_id,plan_id,membership_year,status,starts_at,expires_at,member_code,qr_token,created_at) "
+        "VALUES(1,1,'2026-27','ACTIVE','2026-08-01T00:00:00Z','2027-08-01T00:00:00Z','M0001-VERIFY','QR-VERIFY-TOKEN',?)",
+        (clock.now(),),
+    )
+    raw_token, csrf_token = create_session(conn, 2)
+    conn.close()
+    app_client.cookies.set(COOKIE_SESSION, raw_token)
+
+    for identifier in ("M0001-VERIFY", "QR-VERIFY-TOKEN"):
+        response = app_client.post(
+            "/verify/lookup",
+            data={"csrf_token": csrf_token, "code": identifier},
+        )
+        assert response.status_code == 200
+        assert "Regular User" in response.text
+        assert "ACTIVE MEMBER" in response.text
+
+
+def test_verify_lookup_unknown_identifier_is_a_result_not_an_error(app_client):
+    from clubledger.config import get_db_path
+
+    conn = connect(get_db_path())
+    raw_token, csrf_token = create_session(conn, 2)
+    conn.close()
+    app_client.cookies.set(COOKIE_SESSION, raw_token)
+    response = app_client.post(
+        "/verify/lookup",
+        data={"csrf_token": csrf_token, "code": "UNKNOWN-MEMBER"},
+    )
+    assert response.status_code == 200
+    assert "No membership found" in response.text
