@@ -402,7 +402,7 @@ def test_full_semester_merch_expense_settlement_close_handover(
     )
     assert response.status_code == 303, response.text
     assert db.execute("SELECT COUNT(*) FROM officer_handover").fetchone()[0] == 1
-    from clubledger.core.auth import load_session
+    from clubledger.security.auth import load_session
 
     assert outgoing_cookie and load_session(db, outgoing_cookie) is None
     _, incoming_csrf = login_as(incoming)

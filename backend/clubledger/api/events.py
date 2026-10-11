@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 
 from clubledger.config import get_db_path
 from clubledger.core import clock, idgen
-from clubledger.core.auth import (
+from clubledger.security.auth import (
     COOKIE_SESSION,
     get_current_session,
     get_user_permissions,
@@ -309,7 +309,7 @@ def post_checkin_scan(
         ).fetchone()
         if not event:
             raise DomainError("NOT_FOUND", 404, "Event not found")
-        from clubledger.core.ratelimit import enforce_rate_limit
+        from clubledger.security.ratelimit import enforce_rate_limit
 
         enforce_rate_limit(f"checkin:{session.user_id}", limit=120, window_seconds=60)
         result = check_in(conn, event_id=event_id, code=code, staff_id=session.user_id)

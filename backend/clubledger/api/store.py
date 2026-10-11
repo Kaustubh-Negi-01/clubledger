@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 
 from clubledger.config import get_db_path
 from clubledger.core import idgen
-from clubledger.core.auth import (
+from clubledger.security.auth import (
     COOKIE_SESSION,
     get_current_session,
     get_user_permissions,

@@ -11,7 +11,9 @@ frontend/                 What the user sees
 backend/                  What the application does
   clubledger/
     api/                  URLs and request/response handling
-    core/                 Shared authentication, database and pricing helpers
+    security/             Authentication, permissions, CSRF and request protections
+    core/                 Shared database, clock and pricing helpers
+    notifications/        Account notices and read status
     payments/, events/…   Business rules for each feature
     presentation/         Page context and QR rendering helpers
 database/                 Schema and local data
@@ -24,7 +26,7 @@ tests/                    Automated checks, separate from application code
 docs/                     Architecture, file map and reviewer preparation
 ```
 
-`.env` is a file, not a folder. API code belongs in the backend; secret API keys, when an integration actually exists, belong in local environment settings. This version has no external payment/email/AI API integration.
+`.env` is a file, not a folder. API code belongs in the backend; secret API keys, when an integration actually exists, belong in local environment settings. Payments remain simulated; real email delivery is configured separately on the hosted app. There is no runtime AI API. See `EMAIL_DELIVERY.md` and `NOTIFICATIONS.md`.
 
 ## 2. Languages and tools
 

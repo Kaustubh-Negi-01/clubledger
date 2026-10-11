@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import RedirectResponse, JSONResponse
-from clubledger.core.auth import (
+from clubledger.security.auth import (
     get_current_session,
     require_perm,
     verify_csrf,
@@ -137,8 +137,8 @@ def announcement(request: Request, announcement_id: int):
 @router.post("/subscribe")
 async def subscribe(request: Request, email: Annotated[str, Form()], csrf_token: Token):
     """Handle POST /subscribe. Subscribe."""
-    from clubledger.core.csrf import verify_pre_session_csrf
-    from clubledger.core.ratelimit import enforce_rate_limit
+    from clubledger.security.csrf import verify_pre_session_csrf
+    from clubledger.security.ratelimit import enforce_rate_limit
 
     # A subscriber need not be a club member; pre-session CSRF is still required.
     verify_pre_session_csrf(request, csrf_token)
@@ -170,7 +170,7 @@ def unsubscribe_page(request: Request, token: str):
 @router.post("/unsubscribe/{token}")
 def unsubscribe(request: Request, token: str, csrf_token: Token):
     """Handle POST /unsubscribe/{token}. Unsubscribe."""
-    from clubledger.core.csrf import verify_pre_session_csrf
+    from clubledger.security.csrf import verify_pre_session_csrf
 
     verify_pre_session_csrf(request, csrf_token)
     with unit_of_work() as conn:

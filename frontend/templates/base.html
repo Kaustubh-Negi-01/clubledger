@@ -13,6 +13,7 @@
         {% block head %}
         {% endblock %}
         <link rel="stylesheet" href="/static/page-layouts.css?v=organized-1">
+        <link rel="stylesheet" href="/static/notifications.css?v=1">
         {% if request.url.path in ['/auth/login', '/auth/register'] %}
             <link rel="stylesheet" href="/static/auth.css?v=2">
         {% endif %}
@@ -121,6 +122,35 @@
                 <span class="topbar-meta">
                     {{ 'Officer workspace' if ui.permissions else 'Student workspace' }}
                 </span>
+                {% if ui.user %}
+                {% set unread = ui.notifications | selectattr('unread') | list | length %}
+                <details class="notification-menu">
+                    <summary aria-label="Notifications{% if unread %}, {{ unread }} unread{% endif %}">
+                        <svg class="notification-bell" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+                        </svg>
+                        {% if unread %}<span class="notification-count">{{ unread }}</span>{% endif %}
+                    </summary>
+                    <section class="notification-dropdown" aria-label="Recent notifications">
+                        <h2>Notifications</h2>
+                        {% for notification in ui.notifications[:5] %}
+                        <a class="notification-preview{% if notification.unread %} is-unread{% endif %}" href="{{ notification.href }}">
+                            <strong>{{ notification.title }}</strong>
+                            <span>{{ notification.message }}</span>
+                        </a>
+                        {% else %}
+                        <p>You're all caught up. No notifications yet.</p>
+                        {% endfor %}
+                        <a class="notification-all" href="/notifications">View all notifications</a>
+                        {% if unread %}
+                        <form action="/notifications/read" method="post">
+                            <input type="hidden" name="csrf_token" value="{{ ui.csrf }}">
+                            <button class="secondary" type="submit">Mark all as read</button>
+                        </form>
+                        {% endif %}
+                    </section>
+                </details>
+                {% endif %}
             </header>
             {% endif %}
             <main id="content" tabindex="-1">
@@ -155,6 +185,7 @@
         </div>
         <script src="/static/app.js?v=campus-pass-1" defer>
         </script>
+        <script src="/static/notifications.js?v=1" defer></script>
         {% block scripts %}
         {% endblock %}
     </body>

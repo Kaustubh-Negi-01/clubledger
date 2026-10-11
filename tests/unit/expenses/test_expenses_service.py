@@ -22,7 +22,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from clubledger.config import get_db_path
-from clubledger.core.auth import create_session
+from clubledger.security.auth import create_session
 from clubledger.core.db import apply_migrations, unit_of_work
 from clubledger.core.errors import DomainError
 from clubledger.core import clock

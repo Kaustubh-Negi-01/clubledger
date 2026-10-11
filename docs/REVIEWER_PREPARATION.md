@@ -52,7 +52,7 @@ Open `README.md`, then the four folder READMEs. Explain that frontend files disp
 
 | Person | Suggested area to explain | Files to study |
 | --- | --- | --- |
-| Kaustubh | App startup, security and payment flow | `main.py`, `core/`, `api/payments.py`, `payments/`, `wiring.py` |
+| Kaustubh | App startup, security and payment flow | `main.py`, `security/`, `core/`, `api/payments.py`, `payments/`, `wiring.py` |
 | Saksham | Memberships, tickets and merchandise | `membership/`, `events/`, `store/`, their API routes and migrations 0003–0005 |
 | Hamza | Financial rules, expenses and operational workflows | `journal/`, `reports/`, `expenses/`, `tasks/`, `comms/`, `close/` |
 | Santosh | UI flow, accessibility and verification | `frontend/`, `tests/e2e/`, requirement evidence checker |

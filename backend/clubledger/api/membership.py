@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 
 from clubledger.config import get_db_path
 from clubledger.core import clock, idgen
-from clubledger.core.auth import get_current_session, require_perm, verify_csrf
+from clubledger.security.auth import get_current_session, require_perm, verify_csrf
 from clubledger.core.db import connect, unit_of_work
 from clubledger.core.errors import DomainError
 from clubledger.core.types import Session
@@ -141,7 +141,7 @@ def post_verify_lookup(
 ) -> Response:
     """Lookup member by code or QR token (staff verification)."""
     verify_csrf(session, csrf_token)
-    from clubledger.core.ratelimit import enforce_rate_limit
+    from clubledger.security.ratelimit import enforce_rate_limit
 
     enforce_rate_limit(f"verify:{session.user_id}", limit=60, window_seconds=60)
     conn = connect(get_db_path())

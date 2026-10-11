@@ -4,7 +4,7 @@ import pytest
 
 from clubledger.config import get_config
 from clubledger.core import clock
-from clubledger.core.auth import COOKIE_SESSION, create_session
+from clubledger.security.auth import COOKIE_SESSION, create_session
 from clubledger.core.db import apply_migrations, connect
 from clubledger.main import create_app
 from clubledger.api.membership import router as membership_router

@@ -17,7 +17,7 @@ The four source folders remain unchanged: `frontend/` owns the design, `backend/
 | --- | --- |
 | `backend/server.py` | Vercel entry point; exports the existing FastAPI application |
 | `backend/clubledger/core/postgres.py` | PostgreSQL connection, parameterized SQL adapter, migration checks and transaction protection |
-| `backend/clubledger/core/ratelimit.py` | Shared database rate limits on cloud; in-memory limits locally |
+| `backend/clubledger/security/ratelimit.py` | Shared database rate limits on cloud; in-memory limits locally |
 | `database/postgres/0001`–`0010` | PostgreSQL equivalents of the original SQLite migrations, including financial triggers |
 | `database/postgres/0011_cloud.sql` | Persistent receipt contents and shared rate-limit attempts |
 | `vercel.json` | FastAPI framework and Mumbai function region, close to the Supabase database |
@@ -49,9 +49,9 @@ The first two are stored as sensitive variables in Vercel production and preview
 
 Cloud receipt bytes are stored transactionally in PostgreSQL alongside their metadata. Authorized downloads work after a Vercel cold start because uploads do not depend on temporary server files. Cloud receipts are limited to **3 MB**; local receipts retain the original **5 MB** limit. PNG, JPEG and PDF validation and ownership checks still apply.
 
-Payments remain a **simulator**, including success/failure buttons and signed callbacks. Email remains an outbox/capture simulation. Hosting does not enable a real payment provider or email delivery.
+Payments remain a **simulator**, including success/failure buttons and signed callbacks. Email supports real Brevo SMTP delivery through the durable outbox. Local tests use capture or disabled delivery. Hosting does not enable a real payment provider. See EMAIL_DELIVERY.md for sender configuration and delivery status.
 
-Use existing officer controls and CLI commands for settlement, reservation cleanup, mail capture and semester close. This deployment does not introduce a recurring background worker. Never run schema migrations on every web request. Apply new numbered PostgreSQL migrations through an administrative connection, then grant the runtime role access to any new tables and enable the corresponding backend-only RLS policy.
+Use existing officer controls and CLI commands for settlement, reservation cleanup, mail processing and semester close. Scheduled mail processing uses Vercel and GitHub Actions; see EMAIL_DELIVERY.md. Never run schema migrations on every web request. Apply new numbered PostgreSQL migrations through an administrative connection, then grant the runtime role access to any new tables and enable the corresponding backend-only RLS policy.
 
 ## Verification
 

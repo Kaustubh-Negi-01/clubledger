@@ -218,7 +218,7 @@ Reads local settings without storing private credentials in source code.
 Marks this folder as a Python package; it has no HTTP endpoint of its own.
 
 
-### `backend/clubledger/core/auth.py`
+### `backend/clubledger/security/auth.py`
 
 Checks passwords, manages login sessions and determines user permissions.
 
@@ -248,7 +248,7 @@ Provides one clock for production, development demonstrations and tests.
 - `_parse_demo`: See the route/service explanation and its callers.
 - `academic_year_bounds`: Compute (label, starts_at_utc, expires_at_utc) in Asia/Kolkata (+05:30).
 
-### `backend/clubledger/core/csrf.py`
+### `backend/clubledger/security/csrf.py`
 
 Prevents another website from submitting an action using a logged-in user session.
 
@@ -297,7 +297,7 @@ Calculates eligible membership discounts using server-side data.
 - `ticket_price`: Calculate server-authoritative ticket price per CONTRACT §2.
 - `merch_price`: Calculate server-authoritative merchandise unit price per CONTRACT §2.
 
-### `backend/clubledger/core/ratelimit.py`
+### `backend/clubledger/security/ratelimit.py`
 
 Limits repeated requests such as login attempts and invalid webhooks.
 
@@ -729,3 +729,18 @@ Each `tests/unit/<feature>/test_*.py` file checks the feature named by its folde
 - `tests/cloud/`: isolated real PostgreSQL acceptance flows; skipped when the test credential is absent.
 - `vercel.json`, `.python-version`, `.vercelignore`: cloud framework, region, runtime and upload exclusions.
 - `docs/DEPLOYMENT.md`: hosting, credentials, receipt storage and release checks.
+
+## Security and notification additions
+
+| File | Job |
+| --- | --- |
+| `backend/clubledger/security/middleware.py` | Applies existing browser-request protections |
+| `backend/clubledger/notifications/service.py` | Builds truthful account notices and stores read state |
+| `backend/clubledger/api/notifications.py` | Login-required list and CSRF-protected read actions |
+| `frontend/templates/notifications.html` | Simple notification list |
+| `frontend/static/notifications.css` | Bell, dropdown and list styling |
+| `frontend/static/notifications.js` | Escape and outside-click behavior |
+| `database/migrations/0011_notifications.sql` | Local SQLite read receipts |
+| `database/postgres/0012_notifications.sql` | Equivalent private cloud table |
+| `tests/unit/security/` | Authentication, CSRF and request-limit tests |
+| `tests/unit/test_notifications.py` | Ownership, truthful status and read-state tests |

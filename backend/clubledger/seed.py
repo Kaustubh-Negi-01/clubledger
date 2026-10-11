@@ -135,7 +135,7 @@ def seed_open_term(conn: sqlite3.Connection) -> int:
 
 def seed_demo_actors(conn: sqlite3.Connection) -> None:
     """Seed usable dev-only demo actors and roles idempotently without hardcoded production credentials."""
-    from clubledger.core.auth import hash_password
+    from clubledger.security.auth import hash_password
 
     now_iso = clock.now()
     demo_password_hash = hash_password("DemoPassword123!")

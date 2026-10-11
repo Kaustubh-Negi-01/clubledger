@@ -9,7 +9,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any, Dict, Optional
 
-from clubledger.core.auth import COOKIE_SESSION, create_session, register_user
+from clubledger.security.auth import COOKIE_SESSION, create_session, register_user
 from clubledger.core import clock
 from clubledger.core.db import connect
 

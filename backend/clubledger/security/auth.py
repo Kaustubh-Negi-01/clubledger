@@ -11,7 +11,7 @@ from fastapi import Depends, HTTPException, Request
 
 from clubledger.config import get_db_path, get_env
 from clubledger.core import clock
-from clubledger.core.csrf import verify_csrf_token
+from clubledger.security.csrf import verify_csrf_token
 from clubledger.core.db import connect
 from clubledger.core.errors import DomainError
 from clubledger.core.idgen import generate_csrf_token, generate_token, hash_token

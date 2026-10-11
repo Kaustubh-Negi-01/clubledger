@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from clubledger.core import clock
-from clubledger.core.auth import (
+from clubledger.security.auth import (
     authenticate_user,
     create_session,
     deactivate_user,

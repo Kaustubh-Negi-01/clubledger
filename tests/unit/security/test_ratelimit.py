@@ -4,7 +4,7 @@ import pytest
 
 from clubledger.core import clock
 from clubledger.core.errors import DomainError
-from clubledger.core.ratelimit import (
+from clubledger.security.ratelimit import (
     check_rate_limit,
     enforce_rate_limit,
     reset_rate_limits,

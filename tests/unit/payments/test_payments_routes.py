@@ -7,9 +7,9 @@ from starlette.testclient import TestClient
 
 from clubledger.config import get_sim_secret
 from clubledger.core import clock
-from clubledger.core.auth import COOKIE_SESSION, create_session, register_user
+from clubledger.security.auth import COOKIE_SESSION, create_session, register_user
 from clubledger.core.db import apply_migrations, connect, unit_of_work
-from clubledger.core.ratelimit import reset_rate_limits
+from clubledger.security.ratelimit import reset_rate_limits
 from clubledger.main import create_app
 from clubledger.payments.service import create_payment
 from clubledger.payments.simulator import sign_simulator_payload

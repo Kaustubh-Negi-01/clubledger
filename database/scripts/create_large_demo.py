@@ -174,7 +174,7 @@ def maintain_dataset(conn, students, *, settle):
 
 def populate(conn, *, additive=False):
     from clubledger.core import clock
-    from clubledger.core.auth import hash_password
+    from clubledger.security.auth import hash_password
     from clubledger.core.types import CartItem
     from clubledger.seed import seed_all
     from clubledger.wiring import build_handlers

@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from clubledger.core.auth import require_perm, verify_csrf
+from clubledger.security.auth import require_perm, verify_csrf
 from clubledger.core.types import Session
 from clubledger.core.db import unit_of_work
 from clubledger.comms.service import send_reminders

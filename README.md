@@ -17,6 +17,10 @@ A student association workspace for memberships, events, merchandise, tasks, exp
 
 `.env` is an ignored settings file in the repository root, not an API-code folder. `.env.example` documents the available settings. `tests/` contains automated checks; `docs/` explains the architecture.
 
+## Security and notifications
+
+Security controls are grouped in [`backend/clubledger/security/`](backend/clubledger/security/README.md). The bell shows recent payment results, membership renewal notices and published announcements. See [notification behavior](docs/NOTIFICATIONS.md).
+
 ## Run locally on Windows
 
 Use Python 3.12. Run these commands from the repository root:

@@ -264,7 +264,7 @@ def test_json_board_and_expenses_remain_available(app_client, db, make_user, log
 def test_deactivation_revokes_sessions_reactivation_does_not_restore_them(
     app_client, db, make_user, login_as
 ):
-    from clubledger.core.auth import load_session
+    from clubledger.security.auth import load_session
 
     user = make_user(email="disable-me@college.edu")
     admin = make_user(email="disable-admin@college.edu", roles=["admin"])
@@ -294,7 +294,7 @@ def test_deactivation_revokes_sessions_reactivation_does_not_restore_them(
 @pytest.mark.req("AUTH-12", "pos")
 @pytest.mark.req("AUTH-12", "neg")
 def test_login_throttle_returns_retry_after_and_recovers(app_client, clock):
-    from clubledger.core.ratelimit import reset_rate_limits
+    from clubledger.security.ratelimit import reset_rate_limits
 
     reset_rate_limits()
     clock.set_now("2026-09-01T10:00:00Z")

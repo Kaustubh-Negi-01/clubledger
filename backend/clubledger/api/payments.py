@@ -10,8 +10,8 @@ from starlette.templating import Jinja2Templates
 
 from clubledger.config import get_db_path, get_sim_secret
 from clubledger.core import clock
-from clubledger.core.auth import get_current_session, require_perm
-from clubledger.core.csrf import verify_csrf_token
+from clubledger.security.auth import get_current_session, require_perm
+from clubledger.security.csrf import verify_csrf_token
 from clubledger.core.db import connect, unit_of_work
 from clubledger.core.errors import DomainError
 from clubledger.core.types import Handlers, Payment, Session

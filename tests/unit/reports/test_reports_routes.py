@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 from clubledger.config import get_db_path
 from clubledger.core.types import Line, Payment
 from clubledger.core.db import apply_migrations, unit_of_work
-from clubledger.core.auth import create_session
+from clubledger.security.auth import create_session
 from clubledger.core import clock
 from clubledger.journal import service as journal_service
 from clubledger.api.reports import router as finance_router
@@ -42,9 +42,8 @@ def app_and_db(monkeypatch):
     monkeypatch.setenv("CLUBLEDGER_DB_PATH", path)
 
     with unit_of_work(path) as conn:
-        apply_migrations(
-            conn, files=["0001_core.sql", "0002_payments.sql", "0006_journal.sql"]
-        )
+        # HTTP tests use the full app, including shared notification context.
+        apply_migrations(conn)
 
         # Seed roles, permissions, terms, users
         conn.execute(

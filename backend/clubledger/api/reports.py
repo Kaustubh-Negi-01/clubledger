@@ -20,7 +20,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from clubledger.config import get_db_path
-from clubledger.core.auth import require_perm, get_user_permissions
+from clubledger.security.auth import require_perm, get_user_permissions
 from clubledger.core.db import connect
 from clubledger.core.types import Session
 from clubledger.reports import service

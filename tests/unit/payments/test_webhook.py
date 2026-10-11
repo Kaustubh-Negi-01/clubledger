@@ -8,7 +8,7 @@ import pytest
 
 from clubledger.core import clock
 from clubledger.core.errors import DomainError
-from clubledger.core.ratelimit import reset_rate_limits
+from clubledger.security.ratelimit import reset_rate_limits
 from clubledger.payments.webhook import parse_signature_header, verify_webhook_request
 
 

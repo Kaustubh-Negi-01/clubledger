@@ -4,7 +4,7 @@ import pytest
 from starlette.datastructures import Headers
 from starlette.requests import Request
 
-from clubledger.core.csrf import (
+from clubledger.security.csrf import (
     COOKIE_PRE_SESSION_CSRF,
     verify_csrf_token,
     verify_pre_session_csrf,

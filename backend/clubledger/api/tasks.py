@@ -15,8 +15,8 @@ from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import JSONResponse
 
 from clubledger.config import get_db_path
-from clubledger.core.auth import get_current_session, get_user_permissions
-from clubledger.core.csrf import verify_csrf_token
+from clubledger.security.auth import get_current_session, get_user_permissions
+from clubledger.security.csrf import verify_csrf_token
 from clubledger.core.db import unit_of_work
 from clubledger.core.types import Session
 from clubledger.tasks import service as task_service

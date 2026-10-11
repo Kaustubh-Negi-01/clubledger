@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Notifications · ClubLedger{% endblock %}
+{% block header_title %}Notifications{% endblock %}
+{% block content %}
+<p>Payment updates, renewal reminders and club announcements. Your latest 20 notices appear here.</p>
+{% if notifications | selectattr('unread') | list | length %}
+<form method="post" action="/notifications/read" class="notification-actions">
+    <input type="hidden" name="csrf_token" value="{{ ui.csrf }}">
+    <button type="submit" class="secondary">Mark all as read</button>
+</form>
+{% endif %}
+<div class="notification-list">
+{% for notification in notifications %}
+<article class="notification-card{% if notification.unread %} is-unread{% endif %}">
+    <div class="notification-card-heading">
+        <h2>{{ notification.title }}</h2>
+        <span class="notification-state">{{ 'Unread' if notification.unread else 'Read' }}</span>
+    </div>
+    <p>{{ notification.message }}</p>
+    <div class="notification-card-actions">
+        <a href="{{ notification.href }}">View details</a>
+        {% if notification.unread %}
+        <form method="post" action="/notifications/read">
+            <input type="hidden" name="csrf_token" value="{{ ui.csrf }}">
+            <input type="hidden" name="notification_key" value="{{ notification.key }}">
+            <button class="secondary" type="submit">Mark as read</button>
+        </form>
+        {% endif %}
+    </div>
+</article>
+{% else %}
+<section class="notification-card"><h2>You're all caught up</h2><p>There are no recent notifications for your account.</p></section>
+{% endfor %}
+</div>
+{% endblock %}

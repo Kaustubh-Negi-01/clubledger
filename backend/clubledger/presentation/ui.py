@@ -4,13 +4,14 @@
 from pathlib import Path
 import os
 from fastapi.templating import Jinja2Templates
-from clubledger.core.auth import COOKIE_SESSION, load_session, get_user_permissions
+from clubledger.security.auth import COOKIE_SESSION, load_session, get_user_permissions
 from clubledger.core.db import connect
 from clubledger.config import get_db_path, get_env
 from clubledger.core import clock
 
 from clubledger.paths import TEMPLATES_DIR
 from clubledger.presentation.navigation import MAIN_NAVIGATION, OPERATIONS_NAVIGATION
+from clubledger.notifications.service import recent_notifications
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
@@ -32,6 +33,7 @@ def viewer(request):
         )
         return dict(
             user=user,
+            notifications=recent_notifications(conn, session.user_id) if session else [],
             csrf=session.csrf_token if session else "",
             permissions=get_user_permissions(conn, session.user_id)
             if session

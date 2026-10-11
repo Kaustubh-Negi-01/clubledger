@@ -8,7 +8,9 @@ Start with `clubledger/main.py`, then follow an API route into a service.
 | --- | --- |
 | `clubledger/main.py` | Creates FastAPI, checks incoming requests, registers routes and serves frontend assets |
 | `clubledger/api/` | HTTP entry points: read request inputs, enforce access, call services and return HTML/JSON/redirects |
-| `clubledger/core/` | Shared authentication, transactions, CSRF, clock, pricing, IDs, rate limits and types |
+| `clubledger/core/` | Shared database transactions, clock, pricing, IDs and types |
+| `clubledger/security/` | Authentication, sessions, permissions, CSRF, rate limits and request middleware |
+| `clubledger/notifications/` | Account notices and persistent read receipts |
 | `clubledger/auth/` | Authentication package; its HTTP routes are in `api/auth.py` |
 | `clubledger/payments/` | Payment state machine, refunds, settlement, simulator and webhook validation |
 | `clubledger/membership/` | Membership activation, renewal and verification rules |

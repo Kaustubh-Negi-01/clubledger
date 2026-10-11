@@ -11,7 +11,7 @@ from typing import Any
 
 from clubledger.core import clock
 from clubledger.core.errors import DomainError
-from clubledger.core.ratelimit import enforce_rate_limit
+from clubledger.security.ratelimit import enforce_rate_limit
 
 logger = logging.getLogger(__name__)
 

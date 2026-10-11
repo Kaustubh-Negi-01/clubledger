@@ -5,10 +5,10 @@ import pytest
 from starlette.testclient import TestClient
 
 from clubledger.core import clock
-from clubledger.core.auth import COOKIE_SESSION
-from clubledger.core.csrf import COOKIE_PRE_SESSION_CSRF
+from clubledger.security.auth import COOKIE_SESSION
+from clubledger.security.csrf import COOKIE_PRE_SESSION_CSRF
 from clubledger.core.db import apply_migrations, connect
-from clubledger.core.ratelimit import reset_rate_limits
+from clubledger.security.ratelimit import reset_rate_limits
 from clubledger.main import create_app
 from clubledger.seed import seed_roles_and_permissions
 

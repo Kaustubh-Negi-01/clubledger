@@ -28,8 +28,8 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.templating import Jinja2Templates
 
 from clubledger.config import get_db_path
-from clubledger.core.auth import get_current_session, get_user_permissions, require_perm
-from clubledger.core.csrf import verify_csrf_token
+from clubledger.security.auth import get_current_session, get_user_permissions, require_perm
+from clubledger.security.csrf import verify_csrf_token
 from clubledger.core.db import connect, unit_of_work
 from clubledger.core.errors import DomainError
 from clubledger.core.types import Session

@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 import pytest
 
 from clubledger.core import clock
-from clubledger.core.auth import COOKIE_SESSION, create_session
+from clubledger.security.auth import COOKIE_SESSION, create_session
 from clubledger.core.db import apply_migrations, connect
 from clubledger.core.types import Payment
 from clubledger.api.events import router as events_router

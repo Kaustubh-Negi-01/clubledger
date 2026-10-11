@@ -95,3 +95,8 @@ Extracted from route decorators in `backend/clubledger/api/`. Routes return HTML
 FastAPI also exposes generated OpenAPI documentation at `/docs` and `/openapi.json`. These are framework-generated routes. `/` redirects to `/dashboard`, and `/static` serves frontend assets.
 
 Existing routing note: the workspace HTML fundraiser-board route is registered before the tasks JSON handler for the same GET path. The browser currently receives the workspace HTML handler. The reorganization preserves this order rather than changing an API response during a folder move.
+
+## Notifications
+
+- `GET /notifications`: signed-in account recent notices.
+- `POST /notifications/read`: CSRF-protected mark-all or one `notification_key`; another account's private key returns 404.

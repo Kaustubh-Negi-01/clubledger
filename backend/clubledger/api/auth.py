@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from clubledger.config import get_db_path, get_env
-from clubledger.core.auth import (
+from clubledger.security.auth import (
     COOKIE_SESSION,
     authenticate_user,
     create_session,
@@ -18,7 +18,7 @@ from clubledger.core.auth import (
     register_user,
     revoke_session,
 )
-from clubledger.core.csrf import (
+from clubledger.security.csrf import (
     COOKIE_PRE_SESSION_CSRF,
     ensure_pre_session_csrf,
     verify_csrf_token,
@@ -26,7 +26,7 @@ from clubledger.core.csrf import (
 )
 from clubledger.core.db import connect, unit_of_work
 from clubledger.core.errors import DomainError
-from clubledger.core.ratelimit import enforce_rate_limit
+from clubledger.security.ratelimit import enforce_rate_limit
 from clubledger.core.types import Session
 
 
