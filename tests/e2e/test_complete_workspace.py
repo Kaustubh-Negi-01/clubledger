@@ -170,6 +170,29 @@ def test_admin_screens_and_mail_permissions(app_client, make_user, login_as):
         assert "Main navigation" in response.text
 
 
+def test_manage_events_search_and_status_filters(
+    app_client, db, make_user, make_event, login_as
+):
+    admin = make_user(email="event-filter-admin@college.edu", roles=["admin"])
+    photography = make_event(title="Photography Walk", venue="North Gate")
+    design = make_event(title="Design Sprint", venue="Studio Two")
+    db.execute("UPDATE events SET status='ON_SALE' WHERE id=?", (photography["id"],))
+    db.execute("UPDATE events SET status='DRAFT' WHERE id=?", (design["id"],))
+    login_as(admin)
+
+    response = app_client.get("/admin/events?event_search=photo")
+    assert response.status_code == 200
+    assert "Photography Walk" in response.text
+    assert "Design Sprint" not in response.text
+
+    response = app_client.get("/admin/events?event_status=DRAFT")
+    assert "Design Sprint" in response.text
+    assert "Photography Walk" not in response.text
+
+    response = app_client.get("/admin/events?event_search=missing")
+    assert "No events match these filters." in response.text
+
+
 @pytest.mark.req("AUTH-13", "neg")
 def test_mail_view_denied_to_student_and_hidden_in_production(
     app_client, make_user, login_as, monkeypatch

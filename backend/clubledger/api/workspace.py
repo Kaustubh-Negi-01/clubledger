@@ -4,7 +4,7 @@
 import json
 from decimal import Decimal, InvalidOperation
 from typing import Annotated
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Query, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from clubledger.security.auth import (
     get_current_session,
@@ -829,14 +829,33 @@ def user_status(
 def events_admin(
     request: Request,
     session: Annotated[Session, Depends(require_perm("events.manage"))],
+    event_search: Annotated[str, Query(max_length=80)] = "",
+    event_status: Annotated[str, Query()] = "ALL",
 ):
     """Handle GET /admin/events. Events admin."""
     conn = connect(get_db_path())
     try:
+        normalized_search = event_search.strip().casefold()
+        event_status = event_status.upper()
+        allowed_statuses = {"ALL", "DRAFT", "ON_SALE", "CANCELLED", "COMPLETED"}
+        if event_status not in allowed_statuses:
+            event_status = "ALL"
+        events = [
+            event
+            for event in conn.execute("SELECT * FROM events ORDER BY id DESC").fetchall()
+            if (
+                not normalized_search
+                or normalized_search in event["title"].casefold()
+                or normalized_search in event["venue"].casefold()
+            )
+            and (event_status == "ALL" or event["status"] == event_status)
+        ]
         return render(
             request,
             "manage_events.html",
-            events=conn.execute("SELECT * FROM events ORDER BY id DESC").fetchall(),
+            events=events,
+            event_search=event_search.strip(),
+            event_status=event_status,
         )
     finally:
         conn.close()

@@ -151,3 +151,16 @@ input:not([type=hidden]):not([type=radio]):not([type=checkbox]), select, textare
     .ledger-filter > div:first-child, .ledger-filter-actions { grid-column: 1 / -1; }
 }
 @media (max-width: 520px) { .ledger-filter { grid-template-columns: 1fr; } .ledger-filter > div { grid-column: 1 !important; } }
+
+.event-filter {
+    display: grid;
+    grid-template-columns: minmax(240px, 2fr) minmax(170px, 1fr) auto;
+    gap: 14px;
+    align-items: end;
+}
+.event-filter label { color: var(--terracotta); font-weight: 700; }
+.event-filter-actions { display: flex; gap: 10px; align-items: center; }
+@media (max-width: 720px) {
+    .event-filter { grid-template-columns: 1fr; }
+    .event-filter-actions { flex-wrap: wrap; }
+}

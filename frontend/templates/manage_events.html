@@ -40,6 +40,25 @@
             </form>
         </div>
     </details>
+    <form class="event-filter panel" method="get" action="/admin/events">
+        <div>
+            <label for="event-search">Search events</label>
+            <input id="event-search" name="event_search" type="search"
+                   value="{{ event_search }}" placeholder="Event title or venue">
+        </div>
+        <div>
+            <label for="event-status">Status</label>
+            <select id="event-status" name="event_status">
+                {% for value,label in [('ALL','All statuses'),('DRAFT','Draft'),('ON_SALE','On sale'),('COMPLETED','Completed'),('CANCELLED','Cancelled')] %}
+                    <option value="{{ value }}" {% if event_status==value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="event-filter-actions">
+            <button type="submit">Apply filters</button>
+            <a class="button secondary" href="/admin/events">Clear</a>
+        </div>
+    </form>
     <section class="panel">
         {% for e in events %}
             <div class="row-item">
@@ -76,7 +95,7 @@
             </div>
         {% else %}
             <p class="empty">
-                No events created yet.
+                No events match these filters.
             </p>
         {% endfor %}
     </section>
