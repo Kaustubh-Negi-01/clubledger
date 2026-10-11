@@ -282,7 +282,7 @@ def test_deactivation_revokes_sessions_reactivation_does_not_restore_them(
         f"/admin/users/{admin['id']}/status",
         data={"csrf_token": csrf, "action": "deactivate"},
     )
-    assert response.status_code == 422
+    assert response.status_code == 403
     assert (
         db.execute("SELECT is_active FROM users WHERE id=?", (admin["id"],)).fetchone()[
             0
