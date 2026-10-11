@@ -3,7 +3,7 @@
 
 from pathlib import Path
 import os
-from fastapi.templating import Jinja2Templates
+from clubledger.presentation.pagination import Jinja2Templates
 from clubledger.security.auth import COOKIE_SESSION, load_session, get_user_permissions
 from clubledger.core.db import connect
 from clubledger.config import get_db_path, get_env

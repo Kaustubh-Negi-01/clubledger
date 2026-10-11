@@ -244,7 +244,7 @@ def mail(request: Request, session: Auth):
         if "comms.mail_viewer" not in get_user_permissions(conn, session.user_id):
             raise DomainError("FORBIDDEN", 403)
         rows = conn.execute(
-            "SELECT * FROM mail_outbox ORDER BY id DESC LIMIT 100"
+            "SELECT * FROM mail_outbox ORDER BY id DESC"
         ).fetchall()
         return render(request, "mail.html", messages=rows)
     finally:

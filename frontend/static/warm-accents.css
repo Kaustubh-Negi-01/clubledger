@@ -164,3 +164,11 @@ input:not([type=hidden]):not([type=radio]):not([type=checkbox]), select, textare
     .event-filter { grid-template-columns: 1fr; }
     .event-filter-actions { flex-wrap: wrap; }
 }
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  margin: 2rem 0 1rem;
+}

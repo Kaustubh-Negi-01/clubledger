@@ -1,0 +1,7 @@
+{% if pagination and pagination.total %}
+<nav class="pagination" aria-label="Pagination">
+    {% if pagination.previous %}<a class="button secondary" href="{{ pagination.previous }}">← Previous</a>{% endif %}
+    <span>Showing {{ pagination.start }}–{{ pagination.end }} of {{ pagination.total }} · Page {{ pagination.page }} of {{ pagination.pages }}</span>
+    {% if pagination.next %}<a class="button secondary" href="{{ pagination.next }}">Next →</a>{% endif %}
+</nav>
+{% endif %}

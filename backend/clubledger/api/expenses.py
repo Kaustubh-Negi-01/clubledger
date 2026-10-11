@@ -25,7 +25,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from clubledger.presentation.pagination import Jinja2Templates
 
 from clubledger.config import get_db_path
 from clubledger.security.auth import get_current_session, get_user_permissions, require_perm

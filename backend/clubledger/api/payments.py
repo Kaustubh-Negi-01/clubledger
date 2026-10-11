@@ -6,7 +6,7 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Form, Header, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from starlette.templating import Jinja2Templates
+from clubledger.presentation.pagination import Jinja2Templates
 
 from clubledger.config import get_db_path, get_sim_secret
 from clubledger.core import clock
@@ -236,7 +236,7 @@ def get_admin_payments(
                 " AND (fulfillment = 'UNFULFILLED' OR status IN ('FAILED', 'EXPIRED'))"
             )
 
-        query += " ORDER BY id DESC LIMIT 100;"
+        query += " ORDER BY id DESC;"
         rows = conn.execute(query, params).fetchall()
         payments = [dict(r) for r in rows]
 

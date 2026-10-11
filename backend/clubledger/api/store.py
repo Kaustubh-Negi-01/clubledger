@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from clubledger.presentation.pagination import Jinja2Templates
 
 from clubledger.config import get_db_path
 from clubledger.core import idgen
