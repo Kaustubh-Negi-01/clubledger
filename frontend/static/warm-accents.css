@@ -1,0 +1,138 @@
+/* A restrained terracotta accent layer. Business states retain their own colours. */
+:root {
+    --terracotta: #914b32;
+    --terracotta-line: #c99b82;
+    --terracotta-soft: #f3e4d7;
+    --terracotta-shadow: #7a452011;
+}
+
+/* Keep the cream canvas; add a little warmth around the workspace edges. */
+body:not(.auth-screen) .workspace {
+    background: radial-gradient(ellipse at 100% 0%, #efdece55, transparent 45%), var(--canvas);
+}
+.sidebar { border-right-color: #d6b5a0; }
+.topbar { border-bottom-color: #d6b5a0; }
+.eyebrow, .nav-label { color: var(--terracotta); }
+.sidebar nav a:hover { background: #f3e4d7; }
+.sidebar nav a[aria-current] {
+    box-shadow: inset 3px 0 0 var(--terracotta);
+    background: linear-gradient(110deg,#f4ce56,#f6d779);
+}
+.sidebar nav a[aria-current] .nav-dot { background: var(--terracotta); border-color: var(--terracotta); }
+
+/* Shared cards gain definition without changing their layout or content. */
+.panel, .metric, .product-card, .hero-panel, .auth-panel, .task-card, .kanban-col {
+    border-color: var(--terracotta-line);
+    box-shadow: 0 5px 16px var(--terracotta-shadow), inset 0 1px 0 #ffffffab;
+}
+.section-head h2 { color: #793e2b; }
+.section-head h2::after {
+    content: "";
+    display: block;
+    width: 28px;
+    height: 3px;
+    border-radius: 4px;
+    margin-top: 9px;
+    background: #bd7853;
+}
+.section-head a { color: var(--terracotta); }
+.panel .row-item { border-top-color: #dec4b2; }
+.metric small { color: #7a4936; }
+.table-wrap { border-color: #c99b82; }
+th { background: #f1e7db; color: #714733; }
+td { border-bottom-color: #e1caba; }
+fieldset { border-color: #c99b82; }
+legend { color: #794632; }
+
+/* Primary buttons stay dark. Terracotta identifies secondary actions and focus. */
+.secondary:not(.danger), .quiet:not(.danger) { border-color: #b98266; }
+.secondary:not(.danger):hover, .quiet:not(.danger):hover { background: #f3e4d7; color: #703d2b; }
+:focus-visible { outline-color: #914b32; }
+input[type=checkbox], input[type=radio] { accent-color: #914b32; }
+input:not([type=hidden]):not([type=radio]):not([type=checkbox]):not([aria-invalid=true]),
+select:not([aria-invalid=true]), textarea:not([aria-invalid=true]) { border-color: #ad806b; }
+
+/* The yellow welcome card stays recognizable, with fine warm contour lines. */
+.campus-hero {
+    border-color: #b88b55;
+    background-color: #f7df8d;
+    background-image:
+        radial-gradient(circle at 98% 8%, transparent 0 90px, #a85d3520 91px 92px, transparent 93px 118px, #a85d3514 119px 120px, transparent 121px),
+        linear-gradient(115deg,#f7df8d,#f8df92 65%,#f4d49b);
+    box-shadow: 0 7px 18px #7a452012, inset 0 1px 0 #fff7d4;
+}
+.hero-tag { color: #734027; border-color: #aa784c; background: #ffefbd60; }
+.lead .pill { background: #efdfd0; color: #76482f; border: 1px solid #d7b49a; }
+
+/* Carry the accent into the new inbox; preserve its sage and yellow status cues. */
+.notification-inbox { border-color: #d5ae94; box-shadow: inset 0 1px 0 #fff,0 12px 28px #7a452014; }
+.notification-inbox-header .notification-eyebrow, .notification-dropdown-heading .notification-eyebrow { color: #914b32; }
+.notification-dropdown { border-color: #e0bea7; }
+.notification-card, .notification-preview { border-color: #e4cdbb; }
+.notification-card-actions a { color: #8b4b32; text-decoration-color: #bc896c; }
+.notification-card-actions button.secondary { border-color: #c39980; }
+.notification-menu > summary { box-shadow: inset 0 -2px 3px #8b856519,0 3px 7px #7a452015,0 0 0 1px #c59a7d; }
+.notification-menu summary:focus-visible, .notification-preview:focus-visible, .notification-all:focus-visible { outline-color: #914b32; }
+.product-card h3 a { color: #89482f; text-decoration-color: #bd9075; }
+
+/* A small increase in emphasis, keeping the warm accent understated. */
+.eyebrow, .nav-label { font-size: 12px; font-weight: 600; }
+.section-head h2 { font-size: 24px; font-weight: 700; }
+.section-head a { font-size: 13px; font-weight: 600; }
+.metric small { font-size: 13px; font-weight: 600; }
+th, legend { font-weight: 700; }
+.hero-tag, .lead .pill { font-size: 12px; font-weight: 600; }
+.product-card h3 a { font-size: 18px; font-weight: 700; }
+.notification-inbox-header .notification-eyebrow,
+.notification-dropdown-heading .notification-eyebrow { font-size: .7rem; font-weight: 700; }
+.notification-card-actions a { font-size: .87rem; font-weight: 700; }
+
+/* Half a pixel more definition on the borders that use the warm palette. */
+.panel, .metric, .product-card, .hero-panel, .auth-panel, .task-card,
+.kanban-col, .table-wrap, fieldset, .campus-hero, .hero-tag, .lead .pill,
+.notification-inbox, .notification-dropdown, .notification-card,
+.notification-preview, .secondary:not(.danger), .quiet:not(.danger),
+input:not([type=hidden]):not([type=radio]):not([type=checkbox]):not([aria-invalid=true]),
+select:not([aria-invalid=true]), textarea:not([aria-invalid=true]) { border-width: 1.5px; }
+.sidebar { border-right-width: 1.5px; }
+.topbar { border-bottom-width: 1.5px; }
+.panel .row-item { border-top-width: 1.5px; }
+td { border-bottom-width: 1.5px; }
+
+/* Only the four dashboard panels: layered warm shadows fade into the cream canvas. */
+.dashboard-grid > .panel {
+    box-shadow:
+        inset 0 1px 0 #ffffffb3,
+        0 4px 9px -3px #914b324a,
+        0 14px 27px -7px #a85e3945,
+        0 26px 44px -14px #b97e5433;
+}
+
+/* Shared warm depth: full shadow for surfaces, a compact shadow for controls.
+   Table row dividers and ticket perforations stay flat so the content stays clear. */
+:root {
+    --warm-surface-shadow: inset 0 1px 0 #ffffffb3,
+        0 4px 9px -3px #914b324a,
+        0 14px 27px -7px #a85e3945,
+        0 26px 44px -14px #b97e5433;
+    --warm-compact-shadow: inset 0 1px 0 #ffffff99,
+        0 2px 5px -2px #914b3238,
+        0 6px 12px -5px #a85e3930;
+}
+.panel, .dashboard-grid > .panel, .metric, .product-card, .event-card,
+.hero-panel, .auth-panel, .kanban-col, .campus-hero,
+.notification-inbox, .notification-dropdown,
+.event-poster, .event-booking-panel, .admission-pass, .ticket-checkout {
+    box-shadow: var(--warm-surface-shadow);
+}
+.task-card, .table-wrap, fieldset, .notification-card, .notification-preview {
+    box-shadow: var(--warm-compact-shadow);
+}
+button, .button, input[type=submit], .secondary, .quiet,
+.hero-tag, .lead .pill, .notification-menu > summary,
+input:not([type=hidden]):not([type=radio]):not([type=checkbox]), select, textarea {
+    box-shadow: var(--warm-compact-shadow);
+}
+.topbar { box-shadow: 0 4px 10px -7px #914b3238; }
+.sidebar { box-shadow: 5px 0 14px -10px #914b3238; }
+@media print { * { box-shadow: none !important; } }

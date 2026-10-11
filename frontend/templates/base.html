@@ -18,6 +18,7 @@
         {% if request.url.path in ['/auth/login', '/auth/register'] %}
             <link rel="stylesheet" href="/static/auth.css?v=2">
         {% endif %}
+        <link rel="stylesheet" href="/static/warm-accents.css?v=5">
     </head>
     {# Authentication has a centered entry screen; signed-in pages keep navigation. #}
     {% set auth_page = request.url.path in ['/auth/login', '/auth/register'] %}
