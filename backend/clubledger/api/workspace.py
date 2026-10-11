@@ -724,6 +724,8 @@ def members(
     """Handle GET /admin/members. Members."""
     conn = connect(get_db_path())
     try:
+        from clubledger.security.roles import require_administrator
+        require_administrator(conn, session.user_id)
         return render(
             request,
             "members.html",
@@ -751,6 +753,9 @@ def grant_role(
     """Handle POST /admin/users/{user_id}/role. Grant role."""
     verify_csrf(session, csrf_token)
     with unit_of_work() as conn:
+        from clubledger.security.roles import require_administrator, protect_self
+        require_administrator(conn, session.user_id)
+        protect_self(session.user_id, user_id, action, role)
         row = conn.execute("SELECT id FROM roles WHERE code=?", (role,)).fetchone()
         if (
             not row
@@ -803,6 +808,9 @@ def user_status(
     """Handle POST /admin/users/{user_id}/status. User status."""
     verify_csrf(session, csrf_token)
     with unit_of_work() as conn:
+        from clubledger.security.roles import require_administrator, protect_self
+        require_administrator(conn, session.user_id)
+        protect_self(session.user_id, user_id, action)
         if not conn.execute("SELECT 1 FROM users WHERE id=?", (user_id,)).fetchone():
             raise DomainError("NOT_FOUND", 404)
         if action == "deactivate":

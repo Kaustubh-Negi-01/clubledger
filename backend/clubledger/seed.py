@@ -92,6 +92,13 @@ def seed_roles_and_permissions(conn: sqlite3.Connection) -> None:
     # 3. Seed role_permissions
     for role_code, perms in ROLE_PERMISSIONS_MAP.items():
         role_id = role_id_map[role_code]
+        # Built-in roles have an exact permission set, never accumulated admin privileges.
+        permitted_ids = [perm_id_map[code] for code in perms]
+        placeholders = ",".join("?" for _ in permitted_ids)
+        conn.execute(
+            f"DELETE FROM role_permissions WHERE role_id=? AND permission_id NOT IN ({placeholders})",
+            (role_id, *permitted_ids),
+        )
         for perm_code in perms:
             perm_id = perm_id_map[perm_code]
             conn.execute(
@@ -131,6 +138,32 @@ def seed_open_term(conn: sqlite3.Connection) -> int:
         "SELECT id FROM terms WHERE status = 'OPEN' LIMIT 1;"
     ).fetchone()
     return int(term_row["id"])
+
+
+def repair_demo_roles(conn: sqlite3.Connection) -> None:
+    """Repair only named demo accounts; preserve ordinary users and role history."""
+    assignments = {
+        "admin@skyline.edu": "admin", "treasurer@skyline.edu": "treasurer",
+        "events@skyline.edu": "events", "store@skyline.edu": "store",
+        "comms@skyline.edu": "comms", "student@skyline.edu": None,
+        "incoming@skyline.edu": None,
+    }
+    now = clock.now()
+    for email, role in assignments.items():
+        user = conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+        if not user:
+            continue
+        desired = conn.execute("SELECT id FROM roles WHERE code=?", (role,)).fetchone() if role else None
+        conn.execute(
+            "UPDATE user_roles SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL AND role_id<>?",
+            (now, user["id"], desired["id"] if desired else -1),
+        )
+        if desired and not conn.execute(
+            "SELECT 1 FROM user_roles WHERE user_id=? AND role_id=? AND revoked_at IS NULL",
+            (user["id"], desired["id"]),
+        ).fetchone():
+            conn.execute("INSERT INTO user_roles(user_id,role_id,granted_at,created_at) VALUES(?,?,?,?)",
+                         (user["id"], desired["id"], now, now))
 
 
 def seed_demo_actors(conn: sqlite3.Connection) -> None:
@@ -184,6 +217,9 @@ def seed_demo_actors(conn: sqlite3.Connection) -> None:
                         """,
                         (user_id, role_row["id"], now_iso, now_iso),
                     )
+
+
+    repair_demo_roles(conn)
 
 
 def seed_all(conn: sqlite3.Connection, demo: bool = False) -> None:

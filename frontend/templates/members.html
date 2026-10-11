@@ -10,6 +10,7 @@
     <p class="lead">
         Accounts and memberships are separate. Staff permissions come from explicitly granted roles.
     </p>
+    <p class="lead">Only administrators manage accounts and roles. Treasurer: finance and refunds; events staff: events and check-in; store officer: stock and pickup; communications officer: announcements and mail. Students have no officer permissions.</p>
     <div class="table-wrap">
         <table>
             <thead>
@@ -48,6 +49,7 @@
                                     {{ g.code }}
                                 </span>
                             {% endfor %}
+                            {% if not grants|selectattr('user_id', 'equalto', u.id)|list %}<span class="pill">Student · no officer role</span>{% endif %}
                         </td>
                         <td>
                             <form class="inline-form"
@@ -58,7 +60,8 @@
                                     Role for
                                     {{ u.name }}
                                 </label>
-                                <select id="role-{{ u.id }}" name="role">
+                                <select id="role-{{ u.id }}" name="role" required>
+                                    <option value="" selected disabled>Choose role…</option>
                                     {% for r in roles %}
                                         <option>
                                             {{ r.code }}
@@ -80,7 +83,7 @@
                                     Apply
                                 </button>
                             </form>
-                            {% if "users.manage" in request.state.ui.permissions %}
+                            {% if "users.manage" in request.state.ui.permissions and u.id != request.state.ui.user.id %}
                                 <form class="inline-form"
                                 method="post"
                                 action="/admin/users/{{ u.id }}/status"
