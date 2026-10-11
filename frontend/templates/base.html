@@ -1,3 +1,4 @@
+{% from "partials/notification_icon.html" import notice_icon %}
 {# Base: presentation only. Values are supplied by the backend; forms submit to API routes. #}
 <!DOCTYPE html>
 <html lang="en">
@@ -13,7 +14,7 @@
         {% block head %}
         {% endblock %}
         <link rel="stylesheet" href="/static/page-layouts.css?v=organized-1">
-        <link rel="stylesheet" href="/static/notifications.css?v=1">
+        <link rel="stylesheet" href="/static/notifications.css?v=2">
         {% if request.url.path in ['/auth/login', '/auth/register'] %}
             <link rel="stylesheet" href="/static/auth.css?v=2">
         {% endif %}
@@ -127,16 +128,17 @@
                 <details class="notification-menu">
                     <summary aria-label="Notifications{% if unread %}, {{ unread }} unread{% endif %}">
                         <svg class="notification-bell" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+                            <path class="bell-body" d="M6.5 9a5.5 5.5 0 0 1 11 0v3.5l1.5 3a1 1 0 0 1-.9 1.5H5.9a1 1 0 0 1-.9-1.5l1.5-3V9Z"/><path d="M10 20a2.2 2.2 0 0 0 4 0M12 2v1"/>
                         </svg>
                         {% if unread %}<span class="notification-count">{{ unread }}</span>{% endif %}
                     </summary>
                     <section class="notification-dropdown" aria-label="Recent notifications">
-                        <h2>Notifications</h2>
+                        <div class="notification-dropdown-heading"><div><p class="notification-eyebrow">YOUR CLUB, AT A GLANCE</p><h2>Notifications</h2></div><span class="notification-total">{{ unread }} unread</span></div>
                         {% for notification in ui.notifications[:5] %}
                         <a class="notification-preview{% if notification.unread %} is-unread{% endif %}" href="{{ notification.href }}">
-                            <strong>{{ notification.title }}</strong>
-                            <span>{{ notification.message }}</span>
+                            <span class="notification-icon">{{ notice_icon(notification.key) }}</span>
+                            <span class="notification-preview-content"><strong>{{ notification.title }}</strong><span>{{ notification.message }}</span></span>
+                            {% if notification.unread %}<span class="notification-unread-dot" aria-label="Unread"></span>{% endif %}
                         </a>
                         {% else %}
                         <p>You're all caught up. No notifications yet.</p>

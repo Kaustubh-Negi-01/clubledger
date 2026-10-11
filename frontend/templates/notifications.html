@@ -1,35 +1,48 @@
 {% extends "base.html" %}
+{% from "partials/notification_icon.html" import notice_icon, notice_category %}
 {% block title %}Notifications · ClubLedger{% endblock %}
 {% block header_title %}Notifications{% endblock %}
 {% block content %}
-<p>Payment updates, renewal reminders and club announcements. Your latest 20 notices appear here.</p>
-{% if notifications | selectattr('unread') | list | length %}
-<form method="post" action="/notifications/read" class="notification-actions">
-    <input type="hidden" name="csrf_token" value="{{ ui.csrf }}">
-    <button type="submit" class="secondary">Mark all as read</button>
-</form>
-{% endif %}
-<div class="notification-list">
-{% for notification in notifications %}
-<article class="notification-card{% if notification.unread %} is-unread{% endif %}">
-    <div class="notification-card-heading">
-        <h2>{{ notification.title }}</h2>
-        <span class="notification-state">{{ 'Unread' if notification.unread else 'Read' }}</span>
+{% set unread_count = notifications | selectattr('unread') | list | length %}
+<section class="notification-inbox" aria-label="Your notification inbox">
+    <div class="notification-inbox-header">
+        <div><p class="notification-eyebrow">A LITTLE UPDATE FROM YOUR CLUB</p>
+        <h2>Your club, in the loop.</h2>
+        <p>Payment updates, renewal reminders and announcements, all in one place.</p></div>
+        <span class="notification-total">{{ unread_count }} unread</span>
     </div>
-    <p>{{ notification.message }}</p>
-    <div class="notification-card-actions">
-        <a href="{{ notification.href }}">View details</a>
-        {% if notification.unread %}
+    <div class="notification-toolbar">
+        <p>Latest {{ notifications | length }} {{ 'notice' if notifications | length == 1 else 'notices' }} <span>· Updated when you visit</span></p>
+        {% if unread_count %}
         <form method="post" action="/notifications/read">
             <input type="hidden" name="csrf_token" value="{{ ui.csrf }}">
-            <input type="hidden" name="notification_key" value="{{ notification.key }}">
-            <button class="secondary" type="submit">Mark as read</button>
+            <button type="submit" class="secondary">Mark all as read</button>
         </form>
         {% endif %}
     </div>
-</article>
-{% else %}
-<section class="notification-card"><h2>You're all caught up</h2><p>There are no recent notifications for your account.</p></section>
-{% endfor %}
-</div>
+    <div class="notification-list">
+    {% for notification in notifications %}
+    <article class="notification-card{% if notification.unread %} is-unread{% endif %}">
+        <span class="notification-icon">{{ notice_icon(notification.key) }}</span>
+        <div class="notification-card-content">
+            <div class="notification-card-meta"><span>{{ notice_category(notification.key) }}</span><span class="notification-state">{{ 'Unread' if notification.unread else 'Read' }}</span></div>
+            <h2>{{ notification.title }}</h2>
+            <p>{{ notification.message }}</p>
+            <div class="notification-card-actions">
+                <a href="{{ notification.href }}">View details <span aria-hidden="true">↗</span></a>
+                {% if notification.unread %}
+                <form method="post" action="/notifications/read">
+                    <input type="hidden" name="csrf_token" value="{{ ui.csrf }}">
+                    <input type="hidden" name="notification_key" value="{{ notification.key }}">
+                    <button class="secondary" type="submit">Mark as read</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </article>
+    {% else %}
+    <section class="notification-card notification-empty"><span class="notification-icon">{{ notice_icon('announcement:0') }}</span><div><h2>You're all caught up</h2><p>Your next club update will appear here.</p></div></section>
+    {% endfor %}
+    </div>
+</section>
 {% endblock %}
