@@ -178,3 +178,19 @@ def test_finance_json_and_drilldown(app_and_db):
     integ_data = resp.json()
     assert integ_data["passed"] is True
     assert integ_data["checks"]["debits_equal_credits"]["status"] == "PASS"
+
+
+def test_finance_account_filters(app_and_db):
+    client, admin_token, _ = app_and_db
+    client.cookies.set("cl_session", admin_token)
+
+    response = client.get(
+        "/finance?account_search=clearing&account_type=ASSET&activity=NONZERO",
+        headers={"Accept": "application/json"},
+    )
+    assert response.status_code == 200
+    assert [item["account_code"] for item in response.json()["breakdown"]] == ["1100"]
+
+    response = client.get("/finance?account_search=does-not-exist")
+    assert response.status_code == 200
+    assert "No accounts match these filters." in response.text

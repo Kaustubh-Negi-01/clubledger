@@ -40,6 +40,33 @@
             View period
         </button>
     </form>
+    <form class="ledger-filter panel" method="get" action="/finance">
+        <input type="hidden" name="period_id" value="{{ period_id }}">
+        <div>
+            <label for="account-search">Search accounts</label>
+            <input id="account-search" name="account_search" type="search"
+                   value="{{ account_search }}" placeholder="Account name or code">
+        </div>
+        <div>
+            <label for="account-type">Account type</label>
+            <select id="account-type" name="account_type">
+                {% for value,label in [('ALL','All types'),('ASSET','Assets'),('LIABILITY','Liabilities'),('INCOME','Income'),('EXPENSE','Expenses')] %}
+                    <option value="{{ value }}" {% if account_type==value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="account-activity">Balance</label>
+            <select id="account-activity" name="activity">
+                <option value="ALL" {% if activity=='ALL' %}selected{% endif %}>All balances</option>
+                <option value="NONZERO" {% if activity=='NONZERO' %}selected{% endif %}>Non-zero only</option>
+            </select>
+        </div>
+        <div class="ledger-filter-actions">
+            <button type="submit">Apply filters</button>
+            <a class="button secondary" href="/finance?period_id={{ period_id }}">Clear</a>
+        </div>
+    </form>
     <div class="metrics">
         {% for label,value in [('Cash on Hand (1000)',cash_summary.cash_on_hand),('Payment Clearing (1100)',cash_summary.in_clearing),('Unfulfilled Obligations (2000)',cash_summary.unfulfilled_obligations),('Reimbursements Payable (2100)',cash_summary.reimbursements_payable)] %}
             <div class="metric">
@@ -81,7 +108,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in breakdown.items %}
+                    {% for item in filtered_breakdown %}
                         <tr>
                             <td>
                                 <strong>
@@ -108,6 +135,8 @@
                                 </a>
                             </td>
                         </tr>
+                    {% else %}
+                        <tr><td colspan="6" class="empty">No accounts match these filters.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

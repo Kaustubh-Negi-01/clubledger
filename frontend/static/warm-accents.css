@@ -136,3 +136,18 @@ input:not([type=hidden]):not([type=radio]):not([type=checkbox]), select, textare
 .topbar { box-shadow: 0 4px 10px -7px #914b3238; }
 .sidebar { box-shadow: 5px 0 14px -10px #914b3238; }
 @media print { * { box-shadow: none !important; } }
+
+.ledger-filter {
+    display: grid;
+    grid-template-columns: minmax(220px, 2fr) repeat(2, minmax(150px, 1fr)) auto;
+    gap: 14px;
+    align-items: end;
+    padding: 18px;
+}
+.ledger-filter label { color: var(--terracotta); font-weight: 700; }
+.ledger-filter-actions { display: flex; gap: 10px; align-items: center; }
+@media (max-width: 850px) {
+    .ledger-filter { grid-template-columns: 1fr 1fr; }
+    .ledger-filter > div:first-child, .ledger-filter-actions { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) { .ledger-filter { grid-template-columns: 1fr; } .ledger-filter > div { grid-column: 1 !important; } }

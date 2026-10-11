@@ -49,6 +49,9 @@ def get_finance_dashboard(
     session: Annotated[Session, Depends(require_perm("finance.view"))],
     as_of: Annotated[str | None, Query(alias="as_of")] = None,
     period_id: Annotated[int | None, Query()] = None,
+    account_search: Annotated[str, Query(max_length=80)] = "",
+    account_type: Annotated[str, Query()] = "ALL",
+    activity: Annotated[str, Query()] = "ALL",
 ) -> Response:
     """Handle GET . Get finance dashboard."""
     conn = connect(get_db_path())
@@ -64,6 +67,25 @@ def get_finance_dashboard(
             if item["type"] in ("INCOME", "EXPENSE"):
                 item.update(period_accounts[item["account_code"]])
 
+        account_type = account_type.upper()
+        activity = activity.upper()
+        if account_type not in {"ALL", "ASSET", "LIABILITY", "INCOME", "EXPENSE"}:
+            account_type = "ALL"
+        if activity not in {"ALL", "NONZERO"}:
+            activity = "ALL"
+        normalized_search = account_search.strip().casefold()
+        filtered_items = [
+            item
+            for item in bd.items
+            if (
+                not normalized_search
+                or normalized_search in item["account_code"].casefold()
+                or normalized_search in item["account_name"].casefold()
+            )
+            and (account_type == "ALL" or item["type"] == account_type)
+            and (activity == "ALL" or item["net_paise"] != 0)
+        ]
+
         if "application/json" in request.headers.get("accept", ""):
             return JSONResponse(
                 {
@@ -73,7 +95,7 @@ def get_finance_dashboard(
                         "unfulfilled_obligations": cs.unfulfilled_obligations,
                         "reimbursements_payable": cs.reimbursements_payable,
                     },
-                    "breakdown": bd.items,
+                    "breakdown": filtered_items,
                 }
             )
 
@@ -84,6 +106,10 @@ def get_finance_dashboard(
                 "title": "Finance & Treasury",
                 "cash_summary": cs,
                 "breakdown": bd,
+                "filtered_breakdown": filtered_items,
+                "account_search": account_search.strip(),
+                "account_type": account_type,
+                "activity": activity,
                 "user": session,
                 "period_id": term_id,
                 "terms": conn.execute(
